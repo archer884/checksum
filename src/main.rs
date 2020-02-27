@@ -1,30 +1,49 @@
+mod fmt;
+mod iter;
+
+use fmt::LowerHexFormatter;
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::{fs, io};
-use sha2::{Digest, Sha256};
 use structopt::StructOpt;
 
 #[derive(Clone, Debug, StructOpt)]
 struct Opt {
-    /// The path of the file to be hashed.
+    /// A file path.
     path: String,
-    /// A path to compare against.
-    #[structopt(long = "eq")]
-    other_path: Option<String>,
+    #[structopt(subcommand)]
+    cmd: Option<Command>,
+}
+
+#[derive(Clone, Debug, StructOpt)]
+enum Command {
+    /// Test a file against a provided checksum.
+    Assert {
+        /// The checksum to be asserted.
+        expected: String,
+    },
+
+    /// Test a file against another file.
+    Eq {
+        /// A file path to compare against.
+        other_path: String,
+    },
 }
 
 fn main() -> io::Result<()> {
-    let opt = Opt::from_args();
-
-    match opt.other_path {
-        Some(other_path) => compare(opt.path, other_path)?,
-        None => display_hash(opt.path)?,
+    let Opt { path, cmd } = Opt::from_args();
+    match cmd {
+        None => display_hash(path),
+        Some(Command::Assert { expected }) => assert(path, expected),
+        Some(Command::Eq { other_path }) => compare(path, other_path),
     }
-
-    Ok(())
 }
 
-fn compare(left: impl AsRef<Path>, right: impl AsRef<Path>) -> io::Result<()> {
-    if hash(left)? == hash(right)? {
+fn assert(path: impl AsRef<Path>, expected: String) -> io::Result<()> {
+    let actual = format!("{:x}", LowerHexFormatter(hash(path)?));
+    let expected = expected.to_ascii_lowercase();
+
+    if actual == expected {
         println!("True");
     } else {
         println!("False");
@@ -32,27 +51,30 @@ fn compare(left: impl AsRef<Path>, right: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 
-fn display_hash(path: impl AsRef<Path>) -> io::Result<()> {
-    use std::fmt::{self, LowerHex};
-    
-    struct LowerHexFormatter(Vec<u8>);
+fn compare<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
+    use iter::CompareAgainstHead;
+    use rayon::prelude::*;
 
-    impl LowerHex for LowerHexFormatter {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            for u in self.0.iter() {
-                write!(f, "{:x}", u)?;
-            }
-            Ok(())
-        }
+    // Fun fact: hashing like this can be CPU-bound, so...
+    let tasks: io::Result<Vec<_>> = [left, right].into_par_iter().map(hash).collect();
+
+    if tasks?.all_items_match() {
+        println!("True");
+    } else {
+        println!("False");
     }
-    
+
+    Ok(())
+}
+
+fn display_hash(path: impl AsRef<Path>) -> io::Result<()> {
     println!("{:x}", LowerHexFormatter(hash(path)?));
     Ok(())
 }
 
 fn hash(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     let mut hasher = Sha256::new();
-    let mut reader = fs::File::open(path)?;
+    let mut reader = fs::File::open(path).map(io::BufReader::new)?;
 
     io::copy(&mut reader, &mut hasher)?;
 
