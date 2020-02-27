@@ -1,19 +1,42 @@
-pub trait CompareAgainstHead {
-    fn all_items_match(self) -> bool;
+pub trait IsUniform {
+    fn is_uniform(self) -> bool;
 }
 
-impl<T: IntoIterator> CompareAgainstHead for T
+impl<T: IntoIterator> IsUniform for T
 where
-    <T as IntoIterator>::Item: Eq,
+    T::Item: Eq,
 {
-    fn all_items_match(self) -> bool {
+    fn is_uniform(self) -> bool {
         let mut items = self.into_iter();
+        items
+            .next()
+            .map(|head| items.all(|x| x == head))
+            .unwrap_or(true)
+    }
+}
 
-        let head = match items.next() {
-            Some(head) => head,
-            None => return true,
-        };
+#[cfg(test)]
+mod tests {
+    use super::IsUniform;
+    use std::iter;
 
-        items.all(|x| x == head)
+    #[test]
+    fn empty_iterators_are_uniform() {
+        assert!(iter::empty::<i32>().is_uniform());
+    }
+
+    #[test]
+    fn single_object_iterators_are_uniform() {
+        assert!(iter::once(1).is_uniform());
+    }
+
+    #[test]
+    fn uniform_iterators_are_uniform() {
+        assert!(iter::repeat(1).take(2).is_uniform());
+    }
+
+    #[test]
+    fn non_uniform_iterators_are_not_uniform() {
+        assert!(![1, 2].is_uniform());
     }
 }

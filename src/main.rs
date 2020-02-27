@@ -48,17 +48,18 @@ fn assert(path: impl AsRef<Path>, expected: String) -> io::Result<()> {
     } else {
         println!("False");
     }
+
     Ok(())
 }
 
 fn compare<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
-    use iter::CompareAgainstHead;
+    use iter::IsUniform;
     use rayon::prelude::*;
 
     // Fun fact: hashing like this can be CPU-bound, so...
     let tasks: io::Result<Vec<_>> = [left, right].into_par_iter().map(hash).collect();
 
-    if tasks?.all_items_match() {
+    if tasks?.is_uniform() {
         println!("True");
     } else {
         println!("False");
@@ -75,8 +76,6 @@ fn display_hash(path: impl AsRef<Path>) -> io::Result<()> {
 fn hash(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     let mut hasher = Sha256::new();
     let mut reader = fs::File::open(path).map(io::BufReader::new)?;
-
     io::copy(&mut reader, &mut hasher)?;
-
     Ok(Vec::from(hasher.result().as_slice()))
 }
