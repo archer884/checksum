@@ -4,9 +4,13 @@ mod iter;
 use fmt::LowerHexFormatter;
 use sha2::{Digest, Sha256};
 use std::path::Path;
-use std::{fs, io};
+use std::{fs, io, process};
 use structopt::StructOpt;
 
+/// A simple checksum tool.
+/// 
+/// In theory, failed assertions return non-zero exit codes. This behavior has not been tested,
+/// and I'm not that good at shell scripting. Good luck!
 #[derive(Clone, Debug, StructOpt)]
 struct Opt {
     /// A file path.
@@ -32,6 +36,7 @@ enum Command {
 
 fn main() -> io::Result<()> {
     let Opt { path, cmd } = Opt::from_args();
+
     match cmd {
         None => display_hash(path),
         Some(Command::Assert { expected }) => assert(path, expected),
@@ -47,6 +52,7 @@ fn assert(path: impl AsRef<Path>, expected: String) -> io::Result<()> {
         println!("True");
     } else {
         println!("False");
+        process::exit(1);
     }
 
     Ok(())
@@ -63,6 +69,7 @@ fn compare<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
         println!("True");
     } else {
         println!("False");
+        process::exit(1);
     }
 
     Ok(())
