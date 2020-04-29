@@ -5,42 +5,45 @@ use fmt::LowerHexFormatter;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::{fs, io, process};
-use structopt::StructOpt;
 
-/// A simple checksum tool.
-/// 
-/// In theory, failed assertions return non-zero exit codes. This behavior has not been tested,
-/// and I'm not that good at shell scripting. Good luck!
-#[derive(Clone, Debug, StructOpt)]
-struct Opt {
-    /// A file path.
-    path: String,
-    #[structopt(subcommand)]
-    cmd: Option<Command>,
+enum Command {
+    Print { path: String },
+    Assert { path: String, checksum: String },
+    Compare { left: String, right: String },
 }
 
-#[derive(Clone, Debug, StructOpt)]
-enum Command {
-    /// Test a file against a provided checksum.
-    Assert {
-        /// The checksum to be asserted.
-        expected: String,
-    },
+fn read_command() -> Command {
+    use clap::{load_yaml, App, AppSettings};
 
-    /// Test a file against another file.
-    Eq {
-        /// A file path to compare against.
-        other_path: String,
-    },
+    let yaml = load_yaml!("../args.yaml");
+    let args = App::from_yaml(yaml)
+        .global_setting(AppSettings::SubcommandsNegateReqs)
+        .get_matches();
+
+    if let Some(sub) = args.subcommand_matches("assert") {
+        return Command::Assert {
+            path: sub.value_of("path").unwrap().to_string(),
+            checksum: sub.value_of("checksum").unwrap().to_string(),
+        };
+    }
+
+    if let Some(sub) = args.subcommand_matches("compare") {
+        return Command::Compare {
+            left: sub.value_of("left").unwrap().to_string(),
+            right: sub.value_of("right").unwrap().to_string(),
+        };
+    }
+
+    Command::Print {
+        path: args.value_of("path").unwrap().to_string(),
+    }
 }
 
 fn main() -> io::Result<()> {
-    let Opt { path, cmd } = Opt::from_args();
-
-    match cmd {
-        None => display_hash(path),
-        Some(Command::Assert { expected }) => assert(path, expected),
-        Some(Command::Eq { other_path }) => compare(path, other_path),
+    match read_command() {
+        Command::Print { path } => display_hash(path),
+        Command::Assert { path, checksum } => assert(path, checksum),
+        Command::Compare { left, right } => compare(left, right),
     }
 }
 

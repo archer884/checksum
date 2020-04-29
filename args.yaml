@@ -1,0 +1,41 @@
+name: checksum
+version: "0.1.1"
+author: "J/A <archer884@gmail.com>"
+about: |
+    A simple checksum tool.
+
+    In theory, failed assertions return non-zero exit codes. This behavior has not been tested,
+    and I'm not that good at shell scripting. Good luck!
+
+args:
+    - path:
+        help: A file path.
+        required: true
+        takes_value: true
+
+subcommands:
+    - assert:
+        about: Assert that a file matches a given checksum.
+        args:
+            - path:
+                help: A file path.
+                required: true
+                takes_value: true
+
+            - checksum:
+                help: The checksum to be asserted.
+                required: true
+                takes_value: true
+
+    - compare:
+        about: Compare two files.
+        args:
+            - left:
+                help: A file path.
+                required: true
+                takes_value: true
+
+            - right:
+                help: A second file path.
+                required: true
+                takes_value: true
