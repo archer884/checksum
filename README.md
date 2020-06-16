@@ -6,11 +6,12 @@ checksum 0.1.1
 J/A <archer884@gmail.com>
 A simple checksum tool.
 
-In theory, failed assertions return non-zero exit codes. This behavior has not been tested, and I'm not that good at shell scripting. Good luck!
+In theory, failed assertions return non-zero exit codes. This behavior has not been tested,
+and I'm not that good at shell scripting. Good luck!
 
 USAGE:
-    checksum.exe <path>
-    checksum.exe <SUBCOMMAND>
+    checksum <path>
+    checksum <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
@@ -20,9 +21,10 @@ ARGS:
     <path>    A file path.
 
 SUBCOMMANDS:
-    assert     Assert that a file matches a given checksum.
-    compare    Compare two files.
-    help       Prints this message or the help of the given subcommand(s)
+    assert           Assert that a file matches a given checksum.
+    compare          Compare two files.
+    compare-trees    Compare two directory trees.
+    help             Prints this message or the help of the given subcommand(s)
 ```
 
 Checksum provides three modes of operation:
@@ -48,3 +50,7 @@ False
 ```
 
 Of course, you can also just pass it the path of a file to print the file's checksum.
+
+## Compare trees
+
+Intended for use when performing bulk copy of files from one directory to another, this mode compares file length, relative filenames, and the hash of the first and last portions of the file in order to determine sameness.

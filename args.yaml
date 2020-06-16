@@ -1,5 +1,5 @@
 name: checksum
-version: "0.1.1"
+version: "0.1.2"
 author: "J/A <archer884@gmail.com>"
 about: |
     A simple checksum tool.
@@ -37,5 +37,18 @@ subcommands:
 
             - right:
                 help: A second file path.
+                required: true
+                takes_value: true
+
+    - compare-trees:
+        about: Compare two directory trees.
+        args:
+            - left:
+                help: A directory path.
+                required: true
+                takes_value: true
+
+            - right:
+                help: A second directory path.
                 required: true
                 takes_value: true
