@@ -1,5 +1,5 @@
 name: checksum
-version: "0.1.2"
+version: "0.1.3"
 author: "J/A <archer884@gmail.com>"
 about: |
     A simple checksum tool.
@@ -52,3 +52,10 @@ subcommands:
                 help: A second directory path.
                 required: true
                 takes_value: true
+            
+            - force:
+                short: f
+                long: force
+                help: Test all paths.
+                required: false
+                takes_value: false

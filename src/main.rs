@@ -2,6 +2,7 @@ mod fmt;
 mod iter;
 
 use fmt::LowerHexFormatter;
+use hashbrown::HashMap;
 use imprint::Imprint;
 use sha2::{Digest, Sha256};
 use std::fs::Metadata;
@@ -9,10 +10,22 @@ use std::path::{Path, PathBuf};
 use std::{fs, io, process};
 
 enum Command {
-    Print { path: String },
-    Assert { path: String, checksum: String },
-    Compare { left: String, right: String },
-    CompareTrees { left: String, right: String },
+    Print {
+        path: String,
+    },
+    Assert {
+        path: String,
+        checksum: String,
+    },
+    Compare {
+        left: String,
+        right: String,
+    },
+    CompareTrees {
+        left: String,
+        right: String,
+        force: bool,
+    },
 }
 
 fn read_command() -> Command {
@@ -41,6 +54,7 @@ fn read_command() -> Command {
         return Command::CompareTrees {
             left: sub.value_of("left").unwrap().to_string(),
             right: sub.value_of("right").unwrap().to_string(),
+            force: sub.is_present("force"),
         };
     }
 
@@ -54,7 +68,7 @@ fn main() -> io::Result<()> {
         Command::Print { path } => display_hash(path),
         Command::Assert { path, checksum } => assert(path, checksum),
         Command::Compare { left, right } => compare(left, right),
-        Command::CompareTrees { left, right } => compare_trees(left, right),
+        Command::CompareTrees { left, right, force } => compare_trees(left, right, force),
     }
 }
 
@@ -89,18 +103,33 @@ fn compare<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
     Ok(())
 }
 
-fn compare_trees<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
+fn compare_trees<T: AsRef<Path> + Send>(left: T, right: T, force: bool) -> io::Result<()> {
     let left_tree = read_tree(left.as_ref());
-    let right_tree = read_tree(right.as_ref());
+    let right_tree: HashMap<_, _> = read_tree(right.as_ref()).collect();
 
-    for (l, r) in left_tree.zip(right_tree) {
-        let lp = l.0.strip_prefix(left.as_ref()).unwrap_or(&l.0);
-        let rp = r.0.strip_prefix(right.as_ref()).unwrap_or(&r.0);
-
-        if lp != rp || l.1.len() != r.1.len() || !imprint_mismatch(&l.0, &r.0)? {
+    let mut failure = false;
+    for (suffix, (path, meta)) in left_tree {
+        if let Some(right) = right_tree.get(&suffix) {
+            if meta.len() != right.1.len() || !imprint_match(&path, &right.0)? {
+                if force {
+                    println!("Mismatch: {}", path.display());
+                    failure = true;
+                } else {
+                    println!("False");
+                    process::exit(1);
+                }
+            }
+        } else if force {
+            println!("Missing: {}", path.display());
+            failure = true;
+        } else {
             println!("False");
             process::exit(1);
         }
+    }
+
+    if failure {
+        process::exit(1);
     }
 
     println!("True");
@@ -116,22 +145,24 @@ fn hash(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     let mut hasher = Sha256::new();
     let mut reader = fs::File::open(path).map(io::BufReader::new)?;
     io::copy(&mut reader, &mut hasher)?;
-    Ok(Vec::from(hasher.result().as_slice()))
+    Ok(hasher.finalize().as_slice().into())
 }
 
-fn read_tree(path: impl AsRef<Path>) -> impl Iterator<Item = (PathBuf, Metadata)> {
-    walkdir::WalkDir::new(path).into_iter().filter_map(|entry| {
-        let entry = entry.ok()?;
-
-        if entry.file_type().is_file() {
-            let meta = entry.metadata().ok()?;
-            Some((PathBuf::from(entry.path()), meta))
-        } else {
-            None
-        }
-    })
+fn read_tree<'a>(path: &'a Path) -> impl Iterator<Item = (PathBuf, (PathBuf, Metadata))> + 'a {
+    walkdir::WalkDir::new(path)
+        .into_iter()
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            if entry.file_type().is_file() {
+                let meta = entry.metadata().ok()?;
+                Some((PathBuf::from(entry.path()), meta))
+            } else {
+                None
+            }
+        })
+        .map(move |x| (x.0.strip_prefix(path).unwrap_or(path).to_owned(), x))
 }
 
-fn imprint_mismatch(left: &Path, right: &Path) -> io::Result<bool> {
+fn imprint_match(left: &Path, right: &Path) -> io::Result<bool> {
     Ok(Imprint::new(left)? == Imprint::new(right)?)
 }
