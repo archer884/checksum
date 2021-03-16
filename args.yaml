@@ -29,6 +29,8 @@ subcommands:
 
             - algorithm:
                 help: The hash algorithm to be used.
+                short: a
+                long: algorithm
                 required: false
                 takes_value: true
 
