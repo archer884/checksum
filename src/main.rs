@@ -1,13 +1,44 @@
+use std::{
+    fs,
+    fs::Metadata,
+    io,
+    path::{Path, PathBuf},
+    process,
+    str::FromStr,
+};
+
 mod fmt;
 mod iter;
 
 use fmt::LowerHexFormatter;
 use hashbrown::HashMap;
 use imprint::Imprint;
+use md5::Md5;
 use sha2::{Digest, Sha256};
-use std::fs::Metadata;
-use std::path::{Path, PathBuf};
-use std::{fs, io, process};
+
+enum Algorithm {
+    Md5,
+    Sha256,
+}
+
+impl Default for Algorithm {
+    fn default() -> Self {
+        Algorithm::Sha256
+    }
+}
+
+impl FromStr for Algorithm {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let algorithm = s.to_ascii_lowercase();
+        match &*algorithm {
+            "md5" => Ok(Algorithm::Md5),
+            "sha" | "sha2" | "sha256" => Ok(Algorithm::Sha256),
+            _ => Err("use sha256 or md5"),
+        }
+    }
+}
 
 enum Command {
     Print {
@@ -16,6 +47,7 @@ enum Command {
     Assert {
         path: String,
         checksum: String,
+        algorithm: Option<Algorithm>,
     },
     Compare {
         left: String,
@@ -32,21 +64,26 @@ fn read_command() -> Command {
     use clap::{load_yaml, App, AppSettings};
 
     let yaml = load_yaml!("../args.yaml");
-    let args = App::from_yaml(yaml)
+    let args = App::from(yaml)
         .global_setting(AppSettings::SubcommandsNegateReqs)
         .get_matches();
 
     if let Some(sub) = args.subcommand_matches("assert") {
         return Command::Assert {
-            path: sub.value_of("path").unwrap().to_string(),
-            checksum: sub.value_of("checksum").unwrap().to_string(),
+            path: sub.value_of_t_or_exit("path"),
+            checksum: sub.value_of_t_or_exit("checksum"),
+            algorithm: if sub.is_present("algorithm") {
+                Some(sub.value_of_t_or_exit("algorithm"))
+            } else {
+                None
+            },
         };
     }
 
     if let Some(sub) = args.subcommand_matches("compare") {
         return Command::Compare {
-            left: sub.value_of("left").unwrap().to_string(),
-            right: sub.value_of("right").unwrap().to_string(),
+            left: sub.value_of_t_or_exit("left"),
+            right: sub.value_of_t_or_exit("right"),
         };
     }
 
@@ -66,14 +103,23 @@ fn read_command() -> Command {
 fn main() -> io::Result<()> {
     match read_command() {
         Command::Print { path } => display_hash(path),
-        Command::Assert { path, checksum } => assert(path, checksum),
+        Command::Assert {
+            path,
+            checksum,
+            algorithm,
+        } => assert(path, checksum, algorithm.unwrap_or_default()),
         Command::Compare { left, right } => compare(left, right),
         Command::CompareTrees { left, right, force } => compare_trees(left, right, force),
     }
 }
 
-fn assert(path: impl AsRef<Path>, expected: String) -> io::Result<()> {
-    let actual = format!("{:x}", LowerHexFormatter(hash(path)?));
+fn assert(path: impl AsRef<Path>, expected: String, algorithm: Algorithm) -> io::Result<()> {
+    let hash = match algorithm {
+        Algorithm::Sha256 => hash_sha256(path)?,
+        Algorithm::Md5 => hash_md5(path)?,
+    };
+
+    let actual = format!("{:x}", LowerHexFormatter(hash));
     let expected = expected.to_ascii_lowercase();
 
     if actual == expected {
@@ -91,9 +137,9 @@ fn compare<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
     use rayon::prelude::*;
 
     // Fun fact: hashing like this can be CPU-bound, so...
-    let tasks: io::Result<Vec<_>> = [left, right].into_par_iter().map(hash).collect();
+    let tasks: io::Result<Vec<_>> = [left, right].into_par_iter().map(hash_sha256).collect();
 
-    if tasks?.is_uniform() {
+    if tasks?.uniform() {
         println!("True");
     } else {
         println!("False");
@@ -137,18 +183,25 @@ fn compare_trees<T: AsRef<Path> + Send>(left: T, right: T, force: bool) -> io::R
 }
 
 fn display_hash(path: impl AsRef<Path>) -> io::Result<()> {
-    println!("{:x}", LowerHexFormatter(hash(path)?));
+    println!("{:x}", LowerHexFormatter(hash_sha256(path)?));
     Ok(())
 }
 
-fn hash(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
+fn hash_md5(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
+    let mut hasher = Md5::new();
+    let mut reader = fs::File::open(path).map(io::BufReader::new)?;
+    io::copy(&mut reader, &mut hasher)?;
+    Ok(hasher.finalize().as_slice().into())
+}
+
+fn hash_sha256(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     let mut hasher = Sha256::new();
     let mut reader = fs::File::open(path).map(io::BufReader::new)?;
     io::copy(&mut reader, &mut hasher)?;
     Ok(hasher.finalize().as_slice().into())
 }
 
-fn read_tree<'a>(path: &'a Path) -> impl Iterator<Item = (PathBuf, (PathBuf, Metadata))> + 'a {
+fn read_tree(path: &Path) -> impl Iterator<Item = (PathBuf, (PathBuf, Metadata))> + '_ {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|entry| {

@@ -1,5 +1,5 @@
 name: checksum
-version: "0.1.3"
+version: "0.2.0"
 author: "J/A <archer884@gmail.com>"
 about: |
     A simple checksum tool.
@@ -25,6 +25,11 @@ subcommands:
             - checksum:
                 help: The checksum to be asserted.
                 required: true
+                takes_value: true
+
+            - algorithm:
+                help: The hash algorithm to be used.
+                required: false
                 takes_value: true
 
     - compare:
