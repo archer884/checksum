@@ -64,11 +64,75 @@ enum Command {
 }
 
 fn read_command() -> Command {
-    use clap::{load_yaml, App, AppSettings};
+    use clap::{App, AppSettings, Arg};
 
-    let yaml = load_yaml!("../args.yaml");
-    let args = App::from(yaml)
+    let assert = App::new("assert")
+        .about("Assert that a file matches a given checksum")
+        .args(&[
+            Arg::new("path")
+                .about("a file path")
+                .required(true)
+                .takes_value(true),
+            Arg::new("checksum")
+                .about("a file path")
+                .required(true)
+                .takes_value(true),
+            Arg::new("algorithm")
+                .about("a hash algorithm")
+                .short('a')
+                .long("algorithm")
+                .required(false)
+                .takes_value(true),
+        ]);
+
+    let compare = App::new("compare").about("Compare two files").args(&[
+        Arg::new("left")
+            .about("a file path")
+            .required(true)
+            .takes_value(true),
+        Arg::new("right")
+            .about("a second file path")
+            .required(true)
+            .takes_value(true),
+    ]);
+
+    let compare_trees = App::new("compare-trees")
+        .about("Compare two directory trees")
+        .args(&[
+            Arg::new("left")
+                .about("a directory path")
+                .required(true)
+                .takes_value(true),
+            Arg::new("right")
+                .about("a second directory path")
+                .required(true)
+                .takes_value(true),
+            Arg::new("force")
+                .short('f')
+                .long("force")
+                .about("test all paths")
+                .long_about("do not abort tree comparison at the first mismatch")
+                .required(false)
+                .takes_value(false),
+            Arg::new("hidden")
+                .short('h')
+                .long("hidden")
+                .about("compare hidden files")
+                .required(false)
+                .takes_value(false),
+        ]);
+
+    let args = App::new("checksum")
         .global_setting(AppSettings::SubcommandsNegateReqs)
+        .arg(
+            Arg::new("path")
+                .about("a file path")
+                .required(true)
+                .takes_value(true),
+        )
+        .subcommand(assert)
+        .subcommand(compare)
+        .subcommand(compare_trees)
         .get_matches();
 
     if let Some(sub) = args.subcommand_matches("assert") {
