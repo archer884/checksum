@@ -1,7 +1,7 @@
 use std::{
     fs,
     fs::Metadata,
-    io,
+    io::{self, Write},
     path::{Path, PathBuf},
     process,
     str::FromStr,
@@ -14,16 +14,18 @@ use fmt::LowerHexFormatter;
 use hashbrown::HashMap;
 use imprint::Imprint;
 use md5::Md5;
-use sha2::{Digest, Sha256};
+use sha1::{Digest, Sha1};
+use sha2::Sha256;
 
 enum Algorithm {
     Md5,
+    Sha1,
     Sha256,
 }
 
 impl Default for Algorithm {
     fn default() -> Self {
-        Algorithm::Sha256
+        Algorithm::Sha1
     }
 }
 
@@ -183,6 +185,7 @@ fn main() -> io::Result<()> {
 
 fn assert(path: impl AsRef<Path>, expected: String, algorithm: Algorithm) -> io::Result<()> {
     let hash = match algorithm {
+        Algorithm::Sha1 => hash_sha1(path)?,
         Algorithm::Sha256 => hash_sha256(path)?,
         Algorithm::Md5 => hash_md5(path)?,
     };
@@ -258,17 +261,21 @@ fn display_hash(path: impl AsRef<Path>) -> io::Result<()> {
 }
 
 fn hash_md5(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
-    let mut hasher = Md5::new();
-    let mut reader = fs::File::open(path).map(io::BufReader::new)?;
-    io::copy(&mut reader, &mut hasher)?;
-    Ok(hasher.finalize().as_slice().into())
+    hash(path.as_ref(), Md5::new())
+}
+
+fn hash_sha1(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
+    hash(path.as_ref(), Sha1::new())
 }
 
 fn hash_sha256(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
-    let mut hasher = Sha256::new();
+    hash(path.as_ref(), Sha256::new())
+}
+
+fn hash(path: &Path, mut digest: impl Digest + Write) -> io::Result<Vec<u8>> {
     let mut reader = fs::File::open(path).map(io::BufReader::new)?;
-    io::copy(&mut reader, &mut hasher)?;
-    Ok(hasher.finalize().as_slice().into())
+    io::copy(&mut reader, &mut digest)?;
+    Ok(digest.finalize().as_slice().into())
 }
 
 fn read_tree(

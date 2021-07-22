@@ -1,6 +1,6 @@
 [package]
 name = "checksum"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["J/A <archer884@gmail.com>"]
 edition = "2018"
 
@@ -8,9 +8,10 @@ edition = "2018"
 
 [dependencies]
 clap = { git = "https://github.com/clap-rs/clap" }
+hashbrown = "0.11.2"
 imprint = { git = "https://github.com/archer884/imprint" }
+md-5 = "0.9.1"
 rayon = "1.5.1"
+sha-1 = "0.9.7"
 sha2 = "0.9.5"
 walkdir = "2.3.2"
-hashbrown = "0.11.2"
-md-5 = "0.9.1"
