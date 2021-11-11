@@ -5,6 +5,7 @@ use clap::Parser;
 use crate::error::{Entry, Error};
 
 #[derive(Clone, Debug, Parser)]
+#[clap(version = clap::crate_version!())]
 pub struct Opts {
     /// a file to be hashed
     path: String,
@@ -77,24 +78,35 @@ impl Opts {
 
 #[derive(Clone, Debug, Parser)]
 struct Hashing {
-    /// set blake3 mode (default)
-    /// optionally, supply a blake3 checksum for comparison
-    #[clap(short, long, group = "resource")]
+    #[clap(
+        short,
+        long,
+        long_about = "set blake3 mode and supply an (optional) checksum for comparison"
+    )]
     blake3: Option<Option<String>>,
 
-    /// set md5 mode (default)
-    /// optionally, supply a md5 checksum for comparison
-    #[clap(short, long, group = "resource")]
+    #[clap(
+        short,
+        long,
+        group = "resource",
+        long_about = "set md5 mode and supply an (optional) checksum for comparison"
+    )]
     md5: Option<Option<String>>,
 
-    /// set sha1 mode
-    /// optionally, supply a sha1 checksum for comparison
-    #[clap(short = 'd', long, group = "resource")]
+    #[clap(
+        short = 'd',
+        long,
+        group = "resource",
+        long_about = "set sha1 mode and supply an (optional) checksum for comparison"
+    )]
     sha1: Option<Option<String>>,
 
-    /// set sha256 mode
-    /// optionally, supply a sha256 checksum for comparison
-    #[clap(short = 's', long, group = "resource")]
+    #[clap(
+        short = 's',
+        long,
+        group = "resource",
+        long_about = "set sha256 mode and supply an (optional) checksum for comparison"
+    )]
     sha256: Option<Option<String>>,
 }
 

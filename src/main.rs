@@ -120,7 +120,7 @@ fn compare_trees(compare: &CompareTrees) -> io::Result<()> {
 fn display_hash(path: impl AsRef<Path>, algorithm: Algorithm) -> io::Result<()> {
     let path = path.as_ref();
     let hash = match algorithm {
-        Algorithm::Blake3 => todo!(),
+        Algorithm::Blake3 => hash_blake3(path)?,
         Algorithm::Md5 => hash_md5(path)?,
         Algorithm::Sha1 => hash_sha1(path)?,
         Algorithm::Sha256 => hash_sha256(path)?,

@@ -2,55 +2,93 @@
 
 ```shell
 $ checksum --help
-checksum 0.1.1
-J/A <archer884@gmail.com>
-A simple checksum tool.
-
-In theory, failed assertions return non-zero exit codes. This behavior has not been tested,
-and I'm not that good at shell scripting. Good luck!
+checksum 0.5.0
 
 USAGE:
-    checksum <path>
-    checksum <SUBCOMMAND>
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    checksum.exe [OPTIONS] <PATH> [COMPARE]
 
 ARGS:
-    <path>    A file path.
+    <PATH>
+            a file to be hashed
 
-SUBCOMMANDS:
-    assert           Assert that a file matches a given checksum.
-    compare          Compare two files.
-    compare-trees    Compare two directory trees.
-    help             Prints this message or the help of the given subcommand(s)
+    <COMPARE>
+            a file to compare against
+
+OPTIONS:
+    -b, --blake3 <BLAKE3>
+            set blake3 mode and supply an (optional) checksum for comparison
+
+    -d, --sha1 <SHA1>
+            set sha1 mode and supply an (optional) checksum for comparison
+
+    -f, --force
+            when comparing trees, force a full comparison and list exceptions
+
+    -h, --hidden
+            when comparing trees, include hidden files
+
+        --help
+            Print help information
+
+    -m, --md5 <MD5>
+            set md5 mode and supply an (optional) checksum for comparison
+
+    -s, --sha256 <SHA256>
+            set sha256 mode and supply an (optional) checksum for comparison
+
+    -V, --version
+            Print version information
 ```
 
-Checksum provides three modes of operation:
+## Operation
 
-## Assert
+`checksum` can print a checksum, assert a checksum, compare files, or compare trees.
 
-Assert that a given file has a given checksum. Although checksum's output is always lower case, the case of the input checksum does not matter.
+### Print
+
+If provided with just a file path, checksum will print a checksum. The default algorithm is sha1.
 
 ```shell
-$ checksum assert `
-    ./src/main.rs `
-    e612653753e3e48d779b31c3b92f4b90222b85fcc272031c83d3f226c1fbdd9e
+❯ checksum .\src\main.rs
+1aa86ee54f8f67d506ece60b2a191a75748acc19
+```
+
+To use a different algorithm pass its flag after the file path.
+
+```shell
+❯ checksum .\src\main.rs --blake3
+78d259dc346d9560d48e8885ea43db96b9247f6b73815f463f2e333ad0778fe2
+```
+
+### Assert
+
+To assert that a file should have a given checksum, pass the file path along with the algorithm and checksum.
+
+```shell
+❯ checksum .\src\main.rs `
+    --blake3 78d259dc346d9560d48e8885ea43db96b9247f6b73815f463f2e333ad0778fe2
+True
+```
+### Compare
+
+To compare a file against another file, pass in both filenames. As you can see, checksum is a little careless about making sure they're not just the same file.
+
+```shell
+❯ checksum .\src\main.rs .\src\main.rs
 True
 ```
 
-## Check
+### Compare trees
 
-Check a given file for equality with another file. Hashing is done in parallel; on systems with fast drives, this may provide some benefit. On systems with platter drives, I'm sorry.
+To compare one directory tree against another, pass in both directory paths. (Comparing a directory against a file or vice versa is impossible.) Checksum does *not* perform a full comparison of each file in this case. Instead, only the start and end of each file is compared, along with the length of each file.
+
+Normally, checksum will abort after finding the first mismatched file. This behavior can be avoided by passing the `--force` flag to force a full directory comparison and list all exceptions.
 
 ```shell
-$ checksum compare ./src/main.rs ./src/iter.rs
-False
+❯ checksum .\src\ .\target\ --force
+Missing: .\src\cli.rs
+Missing: .\src\error.rs
+Missing: .\src\fmt.rs
+Missing: .\src\iter.rs
+Missing: .\src\main.rs
 ```
-
-Of course, you can also just pass it the path of a file to print the file's checksum.
-
-## Compare trees
-
-Intended for use when performing bulk copy of files from one directory to another, this mode compares file length, relative filenames, and the hash of the first and last portions of the file in order to determine sameness.
