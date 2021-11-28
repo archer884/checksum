@@ -177,3 +177,18 @@ fn read_tree(
 fn imprint_match(left: &Path, right: &Path) -> io::Result<bool> {
     Ok(Imprint::new(left)? == Imprint::new(right)?)
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use crate::cli::Opts;
+
+    #[test]
+    fn compare_files() {
+        let args = &["foo", "bar.txt", "baz.txt"];
+        let opts: Opts = Parser::parse_from(args);
+        dbg!(opts);
+        panic!();
+    }
+}
