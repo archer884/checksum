@@ -71,6 +71,7 @@ fn compare<T: AsRef<Path> + Send>(left: T, right: T) -> io::Result<()> {
     use rayon::prelude::*;
 
     // Fun fact: hashing like this can be CPU-bound, so...
+    // Edit: actually, these were cpu-bound using sha256, but I dunno about blake3.
     let tasks: io::Result<Vec<_>> = [left, right].into_par_iter().map(hash_blake3).collect();
 
     if tasks?.uniform() {
