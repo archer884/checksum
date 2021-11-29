@@ -187,8 +187,6 @@ mod tests {
     #[test]
     fn compare_files() {
         let args = &["foo", "bar.txt", "baz.txt"];
-        let opts: Opts = Parser::parse_from(args);
-        dbg!(opts);
-        panic!();
+        let _opts: Opts = Parser::try_parse_from(args).unwrap();
     }
 }
