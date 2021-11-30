@@ -18,7 +18,7 @@ use hashbrown::HashMap;
 use imprint::Imprint;
 use md5::Md5;
 use sha1::{Digest, Sha1};
-use sha2::Sha256;
+use sha2::{Sha256, Sha512};
 
 type Result<T, E = error::Error> = std::result::Result<T, E>;
 
@@ -51,6 +51,7 @@ fn assert(path: impl AsRef<Path>, expected: String, algorithm: Algorithm) -> io:
         Algorithm::Md5 => hash_md5(path)?,
         Algorithm::Sha1 => hash_sha1(path)?,
         Algorithm::Sha256 => hash_sha256(path)?,
+        Algorithm::Sha512 => hash_sha512(path)?,
     };
 
     let actual = format!("{:x}", LowerHexFormatter(hash));
@@ -125,6 +126,7 @@ fn display_hash(path: impl AsRef<Path>, algorithm: Algorithm) -> io::Result<()> 
         Algorithm::Md5 => hash_md5(path)?,
         Algorithm::Sha1 => hash_sha1(path)?,
         Algorithm::Sha256 => hash_sha256(path)?,
+        Algorithm::Sha512 => hash_sha512(path)?,
     };
 
     println!("{:x}", LowerHexFormatter(hash));
@@ -145,6 +147,10 @@ fn hash_sha1(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
 
 fn hash_sha256(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     hash(path.as_ref(), Sha256::new())
+}
+
+fn hash_sha512(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
+    hash(path.as_ref(), Sha512::new())
 }
 
 fn hash(path: &Path, mut digest: impl Digest + Write) -> io::Result<Vec<u8>> {

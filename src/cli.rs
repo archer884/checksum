@@ -108,6 +108,14 @@ struct Hashing {
         long_about = "set sha256 mode and supply an (optional) checksum for comparison"
     )]
     sha256: Option<Option<String>>,
+
+    #[clap(
+        short = 'S',
+        long,
+        group = "resource",
+        long_about = "set sha512 mode and supply an (optional) checksum for comparison"
+    )]
+    sha512: Option<Option<String>>,
 }
 
 impl Hashing {
@@ -120,6 +128,8 @@ impl Hashing {
             (Algorithm::Sha1, sha1)
         } else if let Some(sha256) = self.sha256 {
             (Algorithm::Sha256, sha256)
+        } else if let Some(sha512) = self.sha512 {
+            (Algorithm::Sha512, sha512)
         } else {
             // Seems like sha1 is pretty much still the most popular for this
             (Algorithm::Sha1, None)
@@ -133,6 +143,7 @@ pub enum Algorithm {
     Md5,
     Sha1,
     Sha256,
+    Sha512,
 }
 
 #[derive(Clone, Debug)]
