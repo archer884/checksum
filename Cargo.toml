@@ -1,6 +1,6 @@
 [package]
 name = "checksum"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["J/A <archer884@gmail.com>"]
 edition = "2021"
 
@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 blake3 = { version = "1.2.0", features = ["traits-preview"] }
-clap = { git = "https://github.com/clap-rs/clap" }
+clap = { git = "https://github.com/clap-rs/clap", features = ["derive"] }
 hashbrown = "0.11.2"
 imprint = { git = "https://github.com/archer884/imprint" }
 md-5 = "0.9.1"
