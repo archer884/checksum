@@ -134,8 +134,7 @@ fn display_hash(path: impl AsRef<Path>, algorithm: Algorithm) -> io::Result<()> 
 }
 
 fn hash_blake3(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
-    // hash(path.as_ref(), blake3::Hasher::new())
-    todo!("fml whatever")
+    hash(path.as_ref(), blake3::Hasher::new())
 }
 
 fn hash_md5(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
