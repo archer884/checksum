@@ -264,8 +264,8 @@ dependencies = [
 
 [[package]]
 name = "imprint"
-version = "0.2.0"
-source = "git+https://github.com/archer884/imprint#daf80db0557ed88195b10701e8a7ccc1aa3d11eb"
+version = "0.2.1"
+source = "git+https://github.com/archer884/imprint#fbd92e2bd3541f50251e19073cffb522cfe82cf0"
 dependencies = [
  "blake3",
 ]
