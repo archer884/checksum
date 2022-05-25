@@ -14,6 +14,7 @@ pub enum Error {
     // A) wrong and B) the opposite kind.
     InvalidOperation(OperationKind),
     Io(Rc<io::Error>),
+    UnknownAlgorithm(String),
 }
 
 impl Display for Error {
@@ -26,6 +27,7 @@ impl Display for Error {
                 OperationKind::HashDir => f.write_str("cannot hash (not a file)"),
             },
             Error::Io(e) => e.fmt(f),
+            Error::UnknownAlgorithm(algorithm) => write!(f, "unknown algorithm: {algorithm}"),
         }
     }
 }

@@ -2,13 +2,19 @@ use std::{io::Write, path::Path};
 
 use digest::Digest;
 
-use crate::error::{OperationKind, Error};
+use crate::error::{Error, OperationKind};
 
 /// check file hashes
 ///
 /// Basic operation prints a file hash for a file. If two paths are given (both files or both
 /// directories), the two will be compared. A comparison between directories makes use of the
 /// Imprint type for greater efficiency.
+///
+/// If only a left-hand operand is provided, checksum will print the hash of the operand (assuing
+/// said operand is a file; it is an error to pass in only a directory). The algorithm used for
+/// this purpose may be set as an environment variable called CHECKSUM_DEF_ALG. Allowable names
+/// include: blake3, md5, sha1, sha256, sha512. These are not case sensitive. This variable may
+/// be set at compile time.
 ///
 /// A further note on directory comparisons: directory comparisons are asymmetrical. Checksum
 /// will ensure that all files from the left hand directory exist in the right hand directory

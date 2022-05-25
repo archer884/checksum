@@ -18,6 +18,8 @@ use iter::IsUniform;
 use owo_colors::OwoColorize;
 use rayon::prelude::*;
 
+use crate::error::Error;
+
 type Result<T, E = error::Error> = std::result::Result<T, E>;
 
 fn main() {
@@ -67,11 +69,32 @@ fn run(args: &Args) -> Result<()> {
     // print the hash of the left hand path. Exactly which algorithm we should use for this is
     // a matter of preference. Microsoft employs sha256 hashes for most checksums, whereas a lot
     // of content-addressed archives will name things using md5... I think what we're going to do
-    // is to have the program ask whether we have a preference (read: check for an environment 
+    // is to have the program ask whether we have a preference (read: check for an environment
     // variable) and, if not, fall back on md5 because it's short.
 
-    let hash = hash::hash_to_string(&args.left, blake3::Hasher::new())?;
+    #[inline]
+    fn hash_by_algorithm_name(path: &str, name: &str) -> Result<String> {
+        let hash = match name.to_ascii_uppercase().as_ref() {
+            "BLAKE3" => hash::hash_to_string(path, blake3::Hasher::new()),
+            "MD5" => hash::hash_to_string(path, md5::Md5::default()),
+            "SHA1" => hash::hash_to_string(path, sha1::Sha1::default()),
+            "SHA256" => hash::hash_to_string(path, sha2::Sha256::default()),
+            "SHA512" => hash::hash_to_string(path, sha2::Sha512::default()),
+            _ => return Err(Error::UnknownAlgorithm(name.into())),
+        };
+        Ok(hash?)
+    }
+
+    let hash = if let Some(algorithm) = std::option_env!("CHECKSUM_DEF_ALG") {
+        hash_by_algorithm_name(&args.left, algorithm)?
+    } else if let Ok(algorithm) = std::env::var("CHECKSUM_DEF_ALG") {
+        hash_by_algorithm_name(&args.left, &algorithm)?
+    } else {
+        hash::hash_to_string(&args.left, md5::Md5::default())?
+    };
+
     println!("{hash}");
+
     Ok(())
 }
 
