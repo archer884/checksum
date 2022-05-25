@@ -1,167 +1,145 @@
-use std::path::Path;
+use std::{io::Write, path::Path};
 
-use clap::Parser;
+use digest::Digest;
 
-use crate::error::{Entry, Error};
+use crate::error::{ComparisonKind, Error};
 
-#[derive(Clone, Debug, Parser)]
+/// check file hashes
+///
+/// Basic operation prints a file hash for a file. If two paths are given (both files or both
+/// directories), the two will be compared. A comparison between directories makes use of the
+/// Imprint type for greater efficiency.
+///
+/// A further note on directory comparisons: directory comparisons are asymmetrical. Checksum
+/// will ensure that all files from the left hand directory exist in the right hand directory
+/// but not vice versa. This is for the common use case that files from the left have been copied
+/// to some archive location on the right.
+#[derive(Clone, Debug, clap::Parser)]
 #[clap(about, version, author)]
-pub struct Opts {
-    /// a file to be hashed
-    path: String,
+pub struct Args {
+    /// left hand resource
+    pub left: String,
 
-    /// a file to compare against
-    #[clap(group = "resource")]
-    compare: Option<String>,
+    /// right hand resource
+    ///
+    /// This resource, whether file or directory, is compared against the left. Both resources must
+    /// be of matching type: e.g., if the left hand resource is a file, this must also be a file;
+    /// if the left hand resource is a directory, this must also be a directory. This argument is
+    /// ignored by all subcommands.
+    pub right: Option<String>,
 
-    #[clap(flatten)]
-    hashing: Hashing,
-
-    /// when comparing trees, force a full comparison and list exceptions
-    #[clap(short, long)]
-    force: bool,
-
-    /// when comparing trees, include hidden files
-    #[clap(short, long)]
-    hidden: bool,
+    #[clap(subcommand)]
+    pub command: Option<Command>,
 }
 
-impl Opts {
-    pub fn into_command(self) -> crate::Result<Command> {
-        let path = self.path;
+impl Args {
+    pub fn validate(&self) -> crate::Result<()> {
+        // Validation is modal. If we've received a subcommand, we need to ensure that the left
+        // hand path is a file. If we have not, we need to ensure that the category of the right
+        // hand path matches the category of the left.
 
-        // If we have a comparison path, it needs to match the type of the primary path.
-        if let Some(compare) = self.compare {
-            let left = Path::new(&path);
-            let right = Path::new(&compare);
-
-            let left_is_dir = left.is_dir();
-
-            if left_is_dir && right.is_dir() {
-                return Ok(Command::CompareTrees(CompareTrees {
-                    left: path,
-                    right: compare,
-                    force: self.force,
-                    include_hidden_files: self.hidden,
+        let left = Path::new(&self.left);
+        if self.command.is_some() {
+            if !left.is_file() {
+                return Err(Error::IllegalComparison(ComparisonKind::Hash));
+            }
+        } else if let Some(right) = &self.right {
+            let right = Path::new(right);
+            if left.is_file() && !right.is_file() || left.is_dir() && !right.is_dir() {
+                return Err(Error::IllegalComparison(if left.is_file() {
+                    ComparisonKind::File
+                } else {
+                    ComparisonKind::Dir
                 }));
             }
+        }
 
-            if left.is_file() && right.is_file() {
-                return Ok(Command::Compare {
-                    left: path,
-                    right: compare,
-                });
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, clap::Subcommand)]
+pub enum Command {
+    Blake3(Blake3Command),
+    Md5(Md5Command),
+    Sha1(Sha1Command),
+    Sha256(Sha256Command),
+    Sha512(Sha512Command),
+}
+
+pub trait Mode {
+    type Digest: Digest + Write;
+    fn digest(&self) -> Self::Digest;
+    fn get_hash(&self) -> Option<&str>;
+}
+
+macro_rules! impl_mode {
+    ($command:ty, $digest:ty) => {
+        impl Mode for $command {
+            type Digest = $digest;
+
+            fn digest(&self) -> Self::Digest {
+                Default::default()
             }
 
-            return Err(Error::IllegalComparison(if left.is_file() {
-                Entry::File
-            } else {
-                Entry::Dir
-            }));
+            fn get_hash(&self) -> Option<&str> {
+                self.hash.as_deref()
+            }
         }
-
-        let (algorithm, checksum) = self.hashing.get_algorithm();
-
-        // If we have a checksum, this is an assert.
-        if let Some(checksum) = checksum {
-            return Ok(Command::Assert {
-                path,
-                checksum,
-                algorithm,
-            });
-        }
-
-        // Otherwise, we're just going to hash the file and print the checksum.
-        Ok(Command::Print { path, algorithm })
-    }
+    };
 }
 
-#[derive(Clone, Debug, Parser)]
-struct Hashing {
-    #[clap(
-        short,
-        long,
-    )]
-    blake3: Option<Option<String>>,
-
-    #[clap(
-        short,
-        long,
-        group = "resource",
-    )]
-    md5: Option<Option<String>>,
-
-    #[clap(
-        short = 'd',
-        long,
-        group = "resource",
-    )]
-    sha1: Option<Option<String>>,
-
-    #[clap(
-        short = 's',
-        long,
-        group = "resource",
-    )]
-    sha256: Option<Option<String>>,
-
-    #[clap(
-        short = 'S',
-        long,
-        group = "resource",
-    )]
-    sha512: Option<Option<String>>,
+/// blake3 mode
+#[derive(Clone, Debug, clap::Parser)]
+pub struct Blake3Command {
+    /// blake3 hash
+    ///
+    /// Optional. If provided, checksum will assert that this hash matches the given file.
+    hash: Option<String>,
 }
 
-impl Hashing {
-    fn get_algorithm(self) -> (Algorithm, Option<String>) {
-        if let Some(blake3) = self.blake3 {
-            (Algorithm::Blake3, blake3)
-        } else if let Some(md5) = self.md5 {
-            (Algorithm::Md5, md5)
-        } else if let Some(sha1) = self.sha1 {
-            (Algorithm::Sha1, sha1)
-        } else if let Some(sha256) = self.sha256 {
-            (Algorithm::Sha256, sha256)
-        } else if let Some(sha512) = self.sha512 {
-            (Algorithm::Sha512, sha512)
-        } else {
-            // Seems like sha1 is pretty much still the most popular for this
-            (Algorithm::Sha1, None)
-        }
-    }
+impl_mode!(Blake3Command, blake3::Hasher);
+
+/// md5 mode
+#[derive(Clone, Debug, clap::Parser)]
+pub struct Md5Command {
+    /// md5 hash
+    ///
+    /// Optional. If provided, checksum will assert that this hash matches the given file.
+    hash: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum Algorithm {
-    Blake3,
-    Md5,
-    Sha1,
-    Sha256,
-    Sha512,
+impl_mode!(Md5Command, md5::Md5);
+
+/// sha1 mode
+#[derive(Clone, Debug, clap::Parser)]
+pub struct Sha1Command {
+    /// sha1 hash
+    ///
+    /// Optional. If provided, checksum will assert that this hash matches the given file.
+    hash: Option<String>,
 }
 
-#[derive(Clone, Debug)]
-pub struct CompareTrees {
-    pub left: String,
-    pub right: String,
-    pub force: bool,
-    pub include_hidden_files: bool,
+impl_mode!(Sha1Command, sha1::Sha1);
+
+/// sha256 mode
+#[derive(Clone, Debug, clap::Parser)]
+pub struct Sha256Command {
+    /// sha256 hash
+    ///
+    /// Optional. If provided, checksum will assert that this hash matches the given file.
+    hash: Option<String>,
 }
 
-pub enum Command {
-    Print {
-        path: String,
-        algorithm: Algorithm,
-    },
-    Assert {
-        path: String,
-        checksum: String,
-        algorithm: Algorithm,
-    },
-    Compare {
-        left: String,
-        right: String,
-    },
-    CompareTrees(CompareTrees),
+impl_mode!(Sha256Command, sha2::Sha256);
+
+/// sha512 mode
+#[derive(Clone, Debug, clap::Parser)]
+pub struct Sha512Command {
+    /// sha512 hash
+    ///
+    /// Optional. If provided, checksum will assert that this hash matches the given file.
+    hash: Option<String>,
 }
+
+impl_mode!(Sha512Command, sha2::Sha512);
