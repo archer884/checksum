@@ -144,7 +144,10 @@ fn compare_dirs(left: &str, right: &str) -> Result<()> {
         }
     }
 
-    if has_failure {
+    if !has_failure {
+        let message = "True".green();
+        println!("{message}");
+    } else {
         process::exit(1);
     }
 
