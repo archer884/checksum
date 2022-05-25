@@ -63,6 +63,15 @@ fn run(args: &Args) -> Result<()> {
         };
     }
 
+    // Last thing last: if we received no subcommand and no right hand-hand path, we just want to
+    // print the hash of the left hand path. Exactly which algorithm we should use for this is
+    // a matter of preference. Microsoft employs sha256 hashes for most checksums, whereas a lot
+    // of content-addressed archives will name things using md5... I think what we're going to do
+    // is to have the program ask whether we have a preference (read: check for an environment 
+    // variable) and, if not, fall back on md5 because it's short.
+
+    let hash = hash::hash_to_string(&args.left, blake3::Hasher::new())?;
+    println!("{hash}");
     Ok(())
 }
 
@@ -168,7 +177,7 @@ fn read_files(path: &str) -> io::Result<impl Iterator<Item = PathBuf>> {
 
     let non_hidden_files = files.filter(|path| {
         path.file_name()
-            .map(|name| name.to_string_lossy().starts_with('.'))
+            .map(|name| !name.to_string_lossy().starts_with('.'))
             .unwrap_or_default()
     });
 

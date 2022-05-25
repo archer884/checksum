@@ -2,7 +2,7 @@ use std::{io::Write, path::Path};
 
 use digest::Digest;
 
-use crate::error::{ComparisonKind, Error};
+use crate::error::{OperationKind, Error};
 
 /// check file hashes
 ///
@@ -41,17 +41,19 @@ impl Args {
         let left = Path::new(&self.left);
         if self.command.is_some() {
             if !left.is_file() {
-                return Err(Error::IllegalComparison(ComparisonKind::Hash));
+                return Err(Error::InvalidOperation(OperationKind::Hash));
             }
         } else if let Some(right) = &self.right {
             let right = Path::new(right);
             if left.is_file() && !right.is_file() || left.is_dir() && !right.is_dir() {
-                return Err(Error::IllegalComparison(if left.is_file() {
-                    ComparisonKind::File
+                return Err(Error::InvalidOperation(if left.is_file() {
+                    OperationKind::File
                 } else {
-                    ComparisonKind::Dir
+                    OperationKind::Dir
                 }));
             }
+        } else if !left.is_file() {
+            return Err(Error::InvalidOperation(OperationKind::HashDir));
         }
 
         Ok(())
