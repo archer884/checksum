@@ -59,9 +59,9 @@ fn run(args: &Args) -> Result<()> {
         let left = Path::new(&args.left);
 
         return if left.is_file() {
-            compare_files(&args.left, right)
+            compare_files(args.left.as_ref(), right.as_ref())
         } else {
-            compare_dirs(&args.left, right)
+            compare_dirs(&args.left, right, args.full_comparison)
         };
     }
 
@@ -137,9 +137,43 @@ fn compare_files(left: &str, right: &str) -> Result<()> {
     Ok(())
 }
 
-fn short_compare_files(left: &Path, right: &Path) -> Result<bool> {
+trait Comparer {
+    type Output: Eq;
+    fn build(path: &Path) -> io::Result<Self::Output>;
+}
+
+#[derive(Clone, Copy)]
+struct Blake3Comparer;
+
+impl Comparer for Blake3Comparer {
+    type Output = blake3::Hash;
+
+    fn build(path: &Path) -> io::Result<Self::Output> {
+        let mut hasher = blake3::Hasher::new();
+        let mut reader = std::fs::File::open(path)?;
+        io::copy(&mut reader, &mut hasher)?;
+        Ok(hasher.finalize())
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ImprintComparer;
+
+impl Comparer for ImprintComparer {
+    type Output = Imprint;
+
+    fn build(path: &Path) -> io::Result<Self::Output> {
+        Imprint::new(path)
+    }
+}
+
+fn compare_with<T: Comparer>(left: &Path, right: &Path) -> Result<bool> 
+where
+    T: Comparer + Copy,
+    T::Output: Send,
+{
     let tasks = &[left, right];
-    let tasks: io::Result<Vec<_>> = tasks.into_par_iter().map(Imprint::new).collect();
+    let tasks: io::Result<Vec<_>> = tasks.into_par_iter().map(move |&path| T::build(path)).collect();
 
     let uniform = tasks?.uniform();
     if !uniform {
@@ -151,7 +185,7 @@ fn short_compare_files(left: &Path, right: &Path) -> Result<bool> {
     Ok(uniform)
 }
 
-fn compare_dirs(left: &str, right: &str) -> Result<()> {
+fn compare_dirs(left: &str, right: &str, full_comparison: bool) -> Result<()> {
     let left = read_files(left)?.filter_map(|path| {
         get_relative_path(left.as_ref(), &path).map(|absolute| (absolute, path))
     });
@@ -162,19 +196,11 @@ fn compare_dirs(left: &str, right: &str) -> Result<()> {
         })
         .collect();
 
-    let mut has_failure = false;
-    for (relative, absolute) in left {
-        if let Some(right_hand_absolute_path) = right.get(&relative) {
-            if !short_compare_files(&absolute, right_hand_absolute_path)? {
-                has_failure = true;
-            }
-        } else {
-            let missing = "missing".yellow();
-            let relative = relative.display();
-            println!("{missing} {relative}");
-            has_failure = true;
-        }
-    }
+    let has_failure = if full_comparison {
+        compare_contents(left, &right, compare_with::<Blake3Comparer>)?
+    } else {
+        compare_contents(left, &right, compare_with::<ImprintComparer>)?
+    };
 
     if !has_failure {
         let message = "True".green();
@@ -184,6 +210,27 @@ fn compare_dirs(left: &str, right: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn compare_contents<I, C>(left: I, right: &HashMap<PathBuf, PathBuf>, compare: C) -> Result<bool>
+where
+    I: IntoIterator<Item = (PathBuf, PathBuf)>,
+    C: Fn(&Path, &Path) -> Result<bool>,
+{
+    let mut has_failure = false;
+    for (relative, absolute) in left {
+        if let Some(right_hand_absolute_path) = right.get(&relative) {
+            if !compare(&absolute, right_hand_absolute_path)? {
+                has_failure = true;
+            }
+        } else {
+            let missing = "missing".yellow();
+            let relative = relative.display();
+            println!("{missing} {relative}");
+            has_failure = true;
+        }
+    }
+    Ok(has_failure)
 }
 
 fn read_files(path: &str) -> io::Result<impl Iterator<Item = PathBuf>> {

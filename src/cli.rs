@@ -34,6 +34,13 @@ pub struct Args {
     /// ignored by all subcommands.
     pub right: Option<String>,
 
+    /// force full comparison
+    ///
+    /// Forces a full comparison between directories. This has no effect except when comparing
+    /// directories. Warning: this is MUCH slower.
+    #[clap(short, long)]
+    pub full_comparison: bool,
+
     #[clap(subcommand)]
     pub command: Option<Command>,
 }
