@@ -11,7 +11,7 @@ use crate::error::{Error, OperationKind};
 /// Imprint type for greater efficiency.
 ///
 /// If only a left-hand operand is provided, checksum will print the hash of the operand (assuing
-/// said operand is a file; it is an error to pass in only a directory). The algorithm used for
+/// said operand is a file; it is an error to provide only a directory). The algorithm used for
 /// this purpose may be set as an environment variable called CHECKSUM_DEF_ALG. Allowable names
 /// include: blake3, md5, sha1, sha256, sha512. These are not case sensitive. This variable may
 /// be set at compile time.

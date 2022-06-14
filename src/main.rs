@@ -1,5 +1,5 @@
 use std::{
-    fs, io,
+    io,
     path::{Path, PathBuf},
     process,
 };
@@ -12,6 +12,7 @@ mod iter;
 
 use clap::Parser;
 use cli::{Args, Command, Mode};
+use error::OperationKind;
 use hashbrown::HashMap;
 use imprint::Imprint;
 use iter::IsUniform;
@@ -167,13 +168,16 @@ impl Comparer for ImprintComparer {
     }
 }
 
-fn compare_with<T: Comparer>(left: &Path, right: &Path) -> Result<bool> 
+fn compare_with<T: Comparer>(left: &Path, right: &Path) -> Result<bool>
 where
     T: Comparer + Copy,
     T::Output: Send,
 {
     let tasks = &[left, right];
-    let tasks: io::Result<Vec<_>> = tasks.into_par_iter().map(move |&path| T::build(path)).collect();
+    let tasks: io::Result<Vec<_>> = tasks
+        .into_par_iter()
+        .map(move |&path| T::build(path))
+        .collect();
 
     let uniform = tasks?.uniform();
     if !uniform {
@@ -186,11 +190,13 @@ where
 }
 
 fn compare_dirs(left: &str, right: &str, full_comparison: bool) -> Result<()> {
-    let left = read_files(left)?.filter_map(|path| {
+    ensure_distinct(left, right)?;
+
+    let left = read_files(left).filter_map(|path| {
         get_relative_path(left.as_ref(), &path).map(|absolute| (absolute, path))
     });
 
-    let right: HashMap<_, _> = read_files(right)?
+    let right: HashMap<_, _> = read_files(right)
         .filter_map(|path| {
             get_relative_path(right.as_ref(), &path).map(|relative| (relative, path))
         })
@@ -207,6 +213,19 @@ fn compare_dirs(left: &str, right: &str, full_comparison: bool) -> Result<()> {
         println!("{message}");
     } else {
         process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn ensure_distinct(left: &str, right: &str) -> Result<()> {
+    let left = Path::new(left).canonicalize()?;
+    let right = Path::new(right).canonicalize()?;
+
+    if left.ancestors().any(|ancestor| ancestor == right)
+        || right.ancestors().any(|ancestor| ancestor == left)
+    {
+        return Err(Error::InvalidOperation(OperationKind::Child));
     }
 
     Ok(())
@@ -233,25 +252,24 @@ where
     Ok(has_failure)
 }
 
-fn read_files(path: &str) -> io::Result<impl Iterator<Item = PathBuf>> {
-    let files = fs::read_dir(path)?.filter_map(|entry| {
+fn read_files(path: &str) -> impl Iterator<Item = PathBuf> {
+    // let files = fs::read_dir(path)?.filter_map(|entry| {
+    let files = walkdir::WalkDir::new(path).into_iter().filter_map(|entry| {
         let entry = entry.ok()?;
         let meta = entry.metadata().ok()?;
 
         if meta.file_type().is_file() {
-            Some(entry.path())
+            Some(entry.into_path())
         } else {
             None
         }
     });
 
-    let non_hidden_files = files.filter(|path| {
+    files.filter(|path| {
         path.file_name()
             .map(|name| !name.to_string_lossy().starts_with('.'))
             .unwrap_or_default()
-    });
-
-    Ok(non_hidden_files)
+    })
 }
 
 fn get_relative_path(base: &Path, path: &Path) -> Option<PathBuf> {
