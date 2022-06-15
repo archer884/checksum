@@ -41,6 +41,12 @@ pub struct Args {
     #[clap(short, long)]
     pub full_comparison: bool,
 
+    /// verbose
+    ///
+    /// Print names of matching files
+    #[clap(short, long)]
+    pub verbose: bool,
+
     #[clap(subcommand)]
     pub command: Option<Command>,
 }

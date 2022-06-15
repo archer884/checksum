@@ -62,7 +62,7 @@ fn run(args: &Args) -> Result<()> {
         return if left.is_file() {
             compare_files(args.left.as_ref(), right.as_ref())
         } else {
-            compare_dirs(&args.left, right, args.full_comparison)
+            compare_dirs(&args.left, right, args.full_comparison, args.verbose)
         };
     }
 
@@ -189,7 +189,7 @@ where
     Ok(uniform)
 }
 
-fn compare_dirs(left: &str, right: &str, full_comparison: bool) -> Result<()> {
+fn compare_dirs(left: &str, right: &str, full_comparison: bool, verbose: bool) -> Result<()> {
     ensure_distinct(left, right)?;
 
     let left = read_files(left).filter_map(|path| {
@@ -203,9 +203,9 @@ fn compare_dirs(left: &str, right: &str, full_comparison: bool) -> Result<()> {
         .collect();
 
     let has_failure = if full_comparison {
-        compare_contents(left, &right, compare_with::<Blake3Comparer>)?
+        compare_contents(left, &right, compare_with::<Blake3Comparer>, verbose)?
     } else {
-        compare_contents(left, &right, compare_with::<ImprintComparer>)?
+        compare_contents(left, &right, compare_with::<ImprintComparer>, verbose)?
     };
 
     if !has_failure {
@@ -231,16 +231,25 @@ fn ensure_distinct(left: &str, right: &str) -> Result<()> {
     Ok(())
 }
 
-fn compare_contents<I, C>(left: I, right: &HashMap<PathBuf, PathBuf>, compare: C) -> Result<bool>
+fn compare_contents<I, C>(
+    left: I,
+    right: &HashMap<PathBuf, PathBuf>,
+    compare: C,
+    verbose: bool,
+) -> Result<bool>
 where
     I: IntoIterator<Item = (PathBuf, PathBuf)>,
     C: Fn(&Path, &Path) -> Result<bool>,
 {
+    let message = "match".green();
     let mut has_failure = false;
     for (relative, absolute) in left {
         if let Some(right_hand_absolute_path) = right.get(&relative) {
             if !compare(&absolute, right_hand_absolute_path)? {
                 has_failure = true;
+            } else if verbose {
+                let path = relative.display();
+                println!("{message} {path}");
             }
         } else {
             let missing = "missing".yellow();
