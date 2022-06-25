@@ -1,6 +1,7 @@
 use std::{io::Write, path::Path};
 
 use digest::Digest;
+use uncased::{AsUncased, UncasedStr};
 
 use crate::error::{Error, OperationKind};
 
@@ -91,7 +92,7 @@ pub enum Command {
 pub trait Mode {
     type Digest: Digest + Write;
     fn digest(&self) -> Self::Digest;
-    fn get_hash(&self) -> Option<String>;
+    fn get_hash(&self) -> Option<&UncasedStr>;
 }
 
 macro_rules! impl_mode {
@@ -103,8 +104,8 @@ macro_rules! impl_mode {
                 Default::default()
             }
 
-            fn get_hash(&self) -> Option<String> {
-                self.hash.as_ref().map(|hash| hash.to_ascii_lowercase())
+            fn get_hash(&self) -> Option<&UncasedStr> {
+                self.hash.as_ref().map(|hash| hash.as_uncased())
             }
         }
     };

@@ -18,6 +18,7 @@ use imprint::Imprint;
 use iter::IsUniform;
 use owo_colors::OwoColorize;
 use rayon::prelude::*;
+use uncased::AsUncased;
 
 use crate::error::Error;
 
@@ -104,7 +105,7 @@ fn execute_command(path: impl AsRef<Path>, mode: &impl Mode) -> Result<()> {
     let left = hash::hash_to_string(path, mode.digest())?;
 
     if let Some(right) = mode.get_hash() {
-        if left == right {
+        if left.as_uncased() == right {
             let result = "True".green();
             println!("{result}");
         } else {
