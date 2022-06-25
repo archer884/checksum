@@ -91,7 +91,7 @@ pub enum Command {
 pub trait Mode {
     type Digest: Digest + Write;
     fn digest(&self) -> Self::Digest;
-    fn get_hash(&self) -> Option<&str>;
+    fn get_hash(&self) -> Option<String>;
 }
 
 macro_rules! impl_mode {
@@ -103,8 +103,8 @@ macro_rules! impl_mode {
                 Default::default()
             }
 
-            fn get_hash(&self) -> Option<&str> {
-                self.hash.as_deref()
+            fn get_hash(&self) -> Option<String> {
+                self.hash.as_ref().map(|hash| hash.to_ascii_lowercase())
             }
         }
     };

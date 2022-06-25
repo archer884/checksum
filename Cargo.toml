@@ -1,6 +1,6 @@
 [package]
 name = "checksum"
-version = "0.6.3-beta.2"
+version = "0.6.3-beta.3"
 authors = ["J/A <archer884@gmail.com>"]
 edition = "2021"
 
