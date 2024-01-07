@@ -16,6 +16,7 @@ pub enum Error {
     InvalidOperation(OperationKind),
     Io(Rc<io::Error>),
     UnknownAlgorithm(String),
+    HashFile,
 }
 
 impl Display for Error {
@@ -30,6 +31,7 @@ impl Display for Error {
             },
             Error::Io(e) => e.fmt(f),
             Error::UnknownAlgorithm(algorithm) => write!(f, "unknown algorithm: {algorithm}"),
+            Error::HashFile => f.write_str("bad hash file format"),
         }
     }
 }

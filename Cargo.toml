@@ -1,6 +1,6 @@
 [package]
 name = "checksum"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["J/A <archer884@gmail.com>"]
 edition = "2021"
 
@@ -8,12 +8,12 @@ edition = "2021"
 
 [dependencies]
 blake3 = { version = "1.5.0", features = ["traits-preview"] }
-clap = { version = "4.4.10", features = ["derive", "wrap_help"] }
+clap = { version = "4.4.13", features = ["derive", "wrap_help"] }
 digest = "0.10.7"
 hashbrown = "0.14.3"
 imprint = { git = "https://github.com/archer884/imprint" }
 md-5 = "0.10.6"
-owo-colors = "3.5.0"
+owo-colors = "4.0.0"
 rayon = "1.8.0"
 sha-1 = "0.10.1"
 sha2 = "0.10.8"

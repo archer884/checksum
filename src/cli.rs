@@ -7,9 +7,10 @@ use crate::error::{Error, OperationKind};
 
 /// check file hashes
 ///
-/// Basic operation prints a file hash for a file. If two paths are given (both files or both
-/// directories), the two will be compared. A comparison between directories makes use of the
-/// Imprint type for greater efficiency.
+/// Basic operation prints a file hash for a file. Alternatively, if the file path provided refers
+/// to a hash file (e.g. "foo.md5"), the program will attempt to validate all files listed in the
+/// has file. If two paths are given (both files or both directories), the two will be compared.
+/// A comparison between directories makes use of the Imprint type for greater efficiency.
 ///
 /// If only a left-hand operand is provided, checksum will print the hash of the operand (assuing
 /// said operand is a file; it is an error to provide only a directory). The algorithm used for

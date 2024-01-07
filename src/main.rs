@@ -1,19 +1,23 @@
+mod alg;
+mod cli;
+mod error;
+mod fmt;
+mod hash;
+mod hk;
+mod iter;
+
 use std::{
     io,
     path::{Path, PathBuf},
     process,
 };
 
-mod cli;
-mod error;
-mod fmt;
-mod hash;
-mod iter;
-
+use alg::Algorithm;
 use clap::Parser;
 use cli::{Args, Command, Mode};
 use error::OperationKind;
 use hashbrown::HashMap;
+use hk::Hashes;
 use imprint::Imprint;
 use iter::IsUniform;
 use owo_colors::OwoColorize;
@@ -74,28 +78,37 @@ fn run(args: &Args) -> Result<()> {
     // is to have the program ask whether we have a preference (read: check for an environment
     // variable) and, if not, fall back on md5 because it's short.
 
-    #[inline]
-    fn hash_by_algorithm_name(path: &str, name: &str) -> Result<String> {
-        let hash = match name.to_ascii_uppercase().as_ref() {
-            "BLAKE3" => hash::hash_to_string(path, blake3::Hasher::new()),
-            "MD5" => hash::hash_to_string(path, md5::Md5::default()),
-            "SHA1" => hash::hash_to_string(path, sha1::Sha1::default()),
-            "SHA256" => hash::hash_to_string(path, sha2::Sha256::default()),
-            "SHA512" => hash::hash_to_string(path, sha2::Sha512::default()),
-            _ => return Err(Error::UnknownAlgorithm(name.into())),
-        };
-        Ok(hash?)
+    // UNLESS the left-hand path is some kind of checksum file, in which case we want to use it
+    // to verify any files. Right now, we only support md5 files.
+
+    if args.left.to_ascii_lowercase().ends_with(".md5") {
+        return apply_checksums(&args.left);
     }
 
+    print_hash(&args.left)
+}
+
+fn print_hash(path: &str) -> Result<()> {
     let hash = if let Some(algorithm) = std::option_env!("CHECKSUM_DEF_ALG") {
-        hash_by_algorithm_name(&args.left, algorithm)?
+        algorithm.parse::<Algorithm>()?.hash(path)?
     } else if let Ok(algorithm) = std::env::var("CHECKSUM_DEF_ALG") {
-        hash_by_algorithm_name(&args.left, &algorithm)?
+        algorithm.parse::<Algorithm>()?.hash(path)?
     } else {
-        hash::hash_to_string(&args.left, md5::Md5::default())?
+        Algorithm::Md5.hash(path)?
     };
 
     println!("{hash}");
+
+    Ok(())
+}
+
+fn apply_checksums(path: &str) -> Result<()> {
+    let hashes = Hashes::from_path(path)?;
+
+    for exception in hashes.exceptions()? {
+        let exception = exception?;
+        println!("{exception}");
+    }
 
     Ok(())
 }
