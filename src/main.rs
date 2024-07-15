@@ -182,10 +182,9 @@ impl Comparer for ImprintComparer {
     }
 }
 
-fn compare_with<T: Comparer>(left: &Path, right: &Path) -> Result<bool>
+fn compare_with<T>(left: &Path, right: &Path) -> Result<bool>
 where
-    T: Comparer + Copy,
-    T::Output: Send,
+    T: Comparer<Output: Send> + Copy,
 {
     let tasks = &[left, right];
     let tasks: io::Result<Vec<_>> = tasks
