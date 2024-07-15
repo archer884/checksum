@@ -1,21 +1,29 @@
 [package]
 name = "checksum"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["J/A <archer884@gmail.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-blake3 = { version = "1.5.0", features = ["traits-preview"] }
-clap = { version = "4.4.13", features = ["derive", "wrap_help"] }
+blake3 = { version = "1.5.3", features = ["traits-preview"] }
+clap = { version = "4.5.9", features = ["color", "derive", "wrap_help"] }
 digest = "0.10.7"
-hashbrown = "0.14.3"
+hashbrown = "0.14.5"
 imprint = { git = "https://github.com/archer884/imprint" }
 md-5 = "0.10.6"
 owo-colors = "4.0.0"
-rayon = "1.8.0"
+rayon = "1.10.0"
 sha-1 = "0.10.1"
 sha2 = "0.10.8"
-uncased = "0.9.9"
-walkdir = "2.4.0"
+uncased = "0.9.10"
+walkdir = "2.5.0"
+
+[profile.dev]
+debug = 0
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
