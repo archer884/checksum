@@ -1,5 +1,7 @@
 use std::{fmt::Display, io, rc::Rc};
 
+use crate::alg::Algorithm;
+
 #[derive(Copy, Clone, Debug)]
 pub enum OperationKind {
     Child,
@@ -16,6 +18,7 @@ pub enum Error {
     InvalidOperation(OperationKind),
     Io(Rc<io::Error>),
     UnknownAlgorithm(String),
+    UnsupportedAlgorithm(Algorithm),
     HashFile,
 }
 
@@ -31,6 +34,9 @@ impl Display for Error {
             },
             Error::Io(e) => e.fmt(f),
             Error::UnknownAlgorithm(algorithm) => write!(f, "unknown algorithm: {algorithm}"),
+            Error::UnsupportedAlgorithm(algorithm) => {
+                write!(f, "hash files unsupported for {algorithm}")
+            }
             Error::HashFile => f.write_str("bad hash file format"),
         }
     }

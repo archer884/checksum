@@ -79,9 +79,16 @@ fn run(args: &Args) -> Result<()> {
     // variable) and, if not, fall back on md5 because it's short.
 
     // UNLESS the left-hand path is some kind of checksum file, in which case we want to use it
-    // to verify any files. Right now, we only support md5 files.
+    // to verify any files.
 
-    if args.left.to_ascii_lowercase().ends_with(".md5") {
+    static CHECKSUM_FILE_EXTENSIONS: &[&str] = &[".md5", ".sha256"];
+
+    let normalized_file_name = args.left.to_ascii_lowercase();
+    if CHECKSUM_FILE_EXTENSIONS
+        .iter()
+        .copied()
+        .any(|ext| normalized_file_name.ends_with(ext))
+    {
         return apply_checksums(&args.left);
     }
 
@@ -105,7 +112,7 @@ fn print_hash(path: &str) -> Result<()> {
 fn apply_checksums(path: &str) -> Result<()> {
     let hashes = Hashes::from_path(path)?;
 
-    for exception in hashes.exceptions()? {
+    for exception in hashes.verify() {
         let exception = exception?;
         println!("{exception}");
     }

@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{io, path::Path, str::FromStr};
 
 use crate::error::Error;
@@ -20,6 +21,18 @@ impl Algorithm {
             Algorithm::Sha1 => crate::hash::hash_to_string(path, sha1::Sha1::default()),
             Algorithm::Sha256 => crate::hash::hash_to_string(path, sha2::Sha256::default()),
             Algorithm::Sha512 => crate::hash::hash_to_string(path, sha2::Sha512::default()),
+        }
+    }
+}
+
+impl fmt::Display for Algorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Algorithm::Blake3 => f.write_str("Blake3"),
+            Algorithm::Md5 => f.write_str("Md5"),
+            Algorithm::Sha1 => f.write_str("Sha1"),
+            Algorithm::Sha256 => f.write_str("Sha256"),
+            Algorithm::Sha512 => f.write_str("Sha512"),
         }
     }
 }

@@ -11,42 +11,44 @@ use uncased::AsUncased;
 use crate::{alg::Algorithm, error::Error};
 
 pub struct Hashes {
-    algorithm: String,
-    files: Vec<FilePair>,
+    algorithm: Algorithm,
+    files: Vec<ValidateTask>,
 }
 
 impl Hashes {
     pub fn from_path(path: impl AsRef<Path>) -> crate::Result<Self> {
         let path = path.as_ref();
-        let alg = read_alg_from_path(path)?;
+        let algorithm = read_alg_from_path(path)?.parse()?;
         let text = fs::read_to_string(path)?;
-        let entries = text.lines().filter(|&s| !s.starts_with(';'));
+        let entries = text.lines().filter(|&s| !s.starts_with('#'));
 
         let mut files = Vec::new();
 
+        let hash_length = match algorithm {
+            Algorithm::Md5 => 32,
+            Algorithm::Sha256 => 64,
+            _ => return Err(Error::UnsupportedAlgorithm(algorithm)),
+        };
+
         for entry in entries {
-            let (hash, name) = entry
-                .find(" *")
-                .map(|mid| entry.split_at(mid))
-                .ok_or(Error::HashFile)?;
-            let name = &name[2..];
+            let hash = entry.get(..hash_length).ok_or(Error::HashFile)?;
+            let name = entry.get(hash_length..).ok_or(Error::HashFile)?.trim();
 
             // We have to assume the relative path here is correct -- hence the unwrap.
             let path = path.parent().unwrap().join(name);
-            files.push(FilePair::new(path, hash));
+            files.push(ValidateTask::new(path, name, hash));
         }
 
-        Ok(Self {
-            algorithm: alg.into(),
-            files,
-        })
+        Ok(Self { algorithm, files })
     }
 
-    pub fn exceptions(&'_ self) -> crate::Result<ExceptionsIter<'_>> {
-        Ok(ExceptionsIter {
-            algorithm: self.algorithm.parse()?,
+    /// If you don't use this iterator, nothing actually gets verified.
+    #[must_use]
+    pub fn verify(&'_ self) -> Validator<'_> {
+        Validator {
+            algorithm: self.algorithm,
             source: self.files.iter(),
-        })
+        }
     }
 }
 
@@ -56,85 +58,82 @@ fn read_alg_from_path(path: &Path) -> crate::Result<Cow<str>> {
         .map(|s| s.to_string_lossy())
 }
 
-pub struct FilePair {
+pub struct ValidateTask {
     path: PathBuf,
+    name: String,
     hash: String,
 }
 
-impl FilePair {
-    fn new(path: impl Into<PathBuf>, hash: impl Into<String>) -> Self {
+impl ValidateTask {
+    fn new(path: impl Into<PathBuf>, name: impl Into<String>, hash: impl Into<String>) -> Self {
         Self {
             path: path.into(),
+            name: name.into(),
             hash: hash.into(),
         }
     }
 
-    fn validate(&self, algorithm: Algorithm) -> io::Result<ValidationResult> {
+    fn validate(&self, algorithm: Algorithm) -> io::Result<HashResult> {
         let actual = match algorithm.hash(&self.path) {
             Ok(actual) => actual,
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                return Ok(ValidationResult::Missing);
+                return Ok(HashResult::Missing);
             }
             Err(e) => return Err(e),
         };
 
         if self.hash.as_uncased() == actual.as_uncased() {
-            Ok(ValidationResult::Ok)
+            Ok(HashResult::Ok)
         } else {
-            Ok(ValidationResult::Mismatch(actual))
+            Ok(HashResult::Mismatch(actual))
         }
     }
 }
 
-enum ValidationResult {
+enum HashResult {
     Ok,
     Mismatch(String),
     Missing,
 }
 
-pub struct ExceptionsIter<'a> {
+pub struct Validator<'a> {
     algorithm: Algorithm,
-    source: slice::Iter<'a, FilePair>,
+    source: slice::Iter<'a, ValidateTask>,
 }
 
-impl<'a> Iterator for ExceptionsIter<'a> {
-    type Item = io::Result<Exception<'a>>;
+impl<'a> Iterator for Validator<'a> {
+    type Item = io::Result<Validation<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let file = self.source.next()?;
-            let result = match file.validate(self.algorithm) {
-                Ok(result) => result,
-                Err(e) => return Some(Err(e)),
-            };
+        let file = self.source.next()?;
+        let result = match file.validate(self.algorithm) {
+            Ok(result) => result,
+            Err(e) => return Some(Err(e)),
+        };
 
-            match result {
-                ValidationResult::Ok => continue,
-                result => return Some(Ok(Exception { file, result })),
-            }
-        }
+        Some(Ok(Validation { file, result }))
     }
 }
 
-pub struct Exception<'a> {
-    file: &'a FilePair,
-    result: ValidationResult,
+pub struct Validation<'a> {
+    file: &'a ValidateTask,
+    result: HashResult,
 }
 
-impl fmt::Display for Exception<'_> {
+impl fmt::Display for Validation<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.result {
-            ValidationResult::Ok => {
+            HashResult::Ok => {
                 let ok = "OK".bright_green();
-                write!(f, "{ok} {}", self.file.path.display())
+                write!(f, "{ok} {}", self.file.name)
             }
-            ValidationResult::Mismatch(_result) => {
+            HashResult::Mismatch(_result) => {
                 let result = "FAIL".red();
-                write!(f, "{result} {}", self.file.path.display())
+                write!(f, "{result} {}", self.file.name)
             }
-            ValidationResult::Missing => {
+            HashResult::Missing => {
                 let missing = "MISSING".yellow();
-                write!(f, "{missing} {}", self.file.path.display())
+                write!(f, "{missing} {}", self.file.name)
             }
         }
     }
