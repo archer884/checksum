@@ -8,8 +8,14 @@ use crate::{
     CHECKSUM_DEFAULT_ALG,
 };
 
+/// a checksum command
 #[derive(Clone, Debug, Parser)]
-#[command(subcommand_negates_reqs(true), group(ArgGroup::new("compare to")))]
+#[command(
+    version,
+    about,
+    subcommand_negates_reqs(true),
+    group(ArgGroup::new("compare to"))
+)]
 pub struct Args {
     /// a file or directory
     #[arg(required = true)]
