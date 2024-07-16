@@ -25,12 +25,12 @@ impl Hashes {
         let parser = EntryParser::default();
 
         let mut files = Vec::new();
-        
+
         // This should work with or without asterisks.
         // ref: https://www.howtogeek.com/67241/htg-explains-what-are-md5-sha-1-hashes-and-how-do-i-check-them/
         for entry in entries {
             let (hash, name) = parser.parse(entry)?;
-            
+
             // We have to assume the relative path here is correct -- hence the unwrap.
             let path = path.parent().expect("path must refer to file").join(name);
             files.push(ValidateTask::new(path, name, hash));
@@ -65,7 +65,9 @@ impl EntryParser {
 
 impl Default for EntryParser {
     fn default() -> Self {
-        Self { rx: Regex::new(r"^(\S+)\s+\*?(.+)$").unwrap() }
+        Self {
+            rx: Regex::new(r"^(\S+)\s+\*?(.+)$").unwrap(),
+        }
     }
 }
 

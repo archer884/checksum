@@ -4,7 +4,6 @@ use std::{fmt::Display, io, rc::Rc};
 pub enum OperationKind {
     Child,
     Dir,
-    File,
 }
 
 #[derive(Clone, Debug)]
@@ -23,7 +22,6 @@ impl Display for Error {
             Error::InvalidOperation(entry) => match entry {
                 OperationKind::Child => f.write_str("attempt to compare dir against parent dir"),
                 OperationKind::Dir => f.write_str("cannot compare directory against non-directory"),
-                OperationKind::File => f.write_str("cannot compare file against non-file"),
             },
             Error::Io(e) => e.fmt(f),
             Error::UnknownAlgorithm(algorithm) => write!(f, "unknown algorithm: {algorithm}"),
@@ -37,5 +35,11 @@ impl std::error::Error for Error {}
 impl From<io::Error> for Error {
     fn from(v: io::Error) -> Self {
         Self::Io(Rc::new(v))
+    }
+}
+
+impl From<crate::alg::UnknownAlgorithmError> for Error {
+    fn from(e: crate::alg::UnknownAlgorithmError) -> Self {
+        Error::UnknownAlgorithm(e.0)
     }
 }

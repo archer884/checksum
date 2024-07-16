@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 blake3 = { version = "1.5.3", features = ["traits-preview"] }
-clap = { version = "4.5.9", features = ["color", "derive", "wrap_help"] }
+clap = { version = "4.5.9", features = ["color", "derive", "env", "wrap_help"] }
 digest = "0.10.7"
 hashbrown = "0.14.5"
 imprint = { git = "https://github.com/archer884/imprint" }

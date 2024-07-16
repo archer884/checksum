@@ -1,14 +1,12 @@
 use core::fmt;
 use std::{io, path::Path, str::FromStr};
 
-use crate::error::Error;
-
 #[derive(Clone, Copy, Debug, Default)]
 pub enum Algorithm {
     Blake3,
     Md5,
-    #[default]
     Sha1,
+    #[default]
     Sha256,
     Sha512,
 }
@@ -39,7 +37,7 @@ impl fmt::Display for Algorithm {
 }
 
 impl FromStr for Algorithm {
-    type Err = Error;
+    type Err = UnknownAlgorithmError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_uppercase().as_ref() {
@@ -48,7 +46,18 @@ impl FromStr for Algorithm {
             "SHA1" => Ok(Algorithm::Sha1),
             "SHA256" => Ok(Algorithm::Sha256),
             "SHA512" => Ok(Algorithm::Sha512),
-            _ => Err(Error::UnknownAlgorithm(s.into())),
+            _ => Err(UnknownAlgorithmError(s.into())),
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct UnknownAlgorithmError(pub String);
+
+impl fmt::Display for UnknownAlgorithmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown algorithm: {}", self.0)
+    }
+}
+
+impl std::error::Error for UnknownAlgorithmError {}
