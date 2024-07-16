@@ -55,17 +55,10 @@ pub struct Args {
 
 impl Args {
     pub fn validate(&self) -> crate::Result<()> {
-        // Validation is modal. If we've received a subcommand, we need to ensure that the left
-        // hand path is a file. If we have not, we need to ensure that the category of the right
-        // hand path matches the category of the left.
-
-        let left = Path::new(&self.left);
-        if self.command.is_some() {
-            if !left.is_file() {
-                return Err(Error::InvalidOperation(OperationKind::Hash));
-            }
-        } else if let Some(right) = &self.right {
+        if let Some(right) = &self.right {
+            let left = Path::new(&self.left);
             let right = Path::new(right);
+
             if left.is_file() && !right.is_file() || left.is_dir() && !right.is_dir() {
                 return Err(Error::InvalidOperation(if left.is_file() {
                     OperationKind::File
@@ -73,8 +66,6 @@ impl Args {
                     OperationKind::Dir
                 }));
             }
-        } else if !left.is_file() {
-            return Err(Error::InvalidOperation(OperationKind::HashDir));
         }
 
         Ok(())

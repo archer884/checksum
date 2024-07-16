@@ -26,6 +26,9 @@ use uncased::{AsUncased, UncasedStr};
 
 use crate::error::Error;
 
+/// Environment key defining the default algorithm for this program.
+static CHECKSUM_DEFAULT_ALG: &str = "CHECKSUM_DEFAULT_ALG";
+
 type Result<T, E = error::Error> = std::result::Result<T, E>;
 
 fn main() {
@@ -96,15 +99,18 @@ fn run(args: &Args) -> Result<()> {
 }
 
 fn print_hash(path: &str) -> Result<()> {
-    let hash = if let Some(algorithm) = std::option_env!("CHECKSUM_DEF_ALG") {
-        algorithm.parse::<Algorithm>()?.hash(path)?
-    } else if let Ok(algorithm) = std::env::var("CHECKSUM_DEF_ALG") {
-        algorithm.parse::<Algorithm>()?.hash(path)?
-    } else {
-        Algorithm::Md5.hash(path)?
-    };
+    let alg: Algorithm = std::env::var(CHECKSUM_DEFAULT_ALG).ok()
+        .and_then(|x| x.parse().ok())
+        .unwrap_or_default();
 
-    println!("{hash}");
+    let files: Vec<_> = read_files(path).collect();
+    for file in &files {
+        if files.len() == 1 {
+            println!("{}", alg.hash(file)?);
+        } else {
+            println!("{}  {}", alg.hash(file)?, file.display());
+        }
+    }
 
     Ok(())
 }
@@ -137,6 +143,8 @@ fn execute_command(args: &Args, mode: &impl Mode) -> Result<()> {
         // I mean, the CLI works perfectly, but fuck me if my brain is interested in trying to
         // write this fuckin' file right now.
         dbg!(output);
+    } else {
+
     }
 
     println!("{left}");
@@ -298,7 +306,6 @@ where
 }
 
 fn read_files(path: &str) -> impl Iterator<Item = PathBuf> {
-    // let files = fs::read_dir(path)?.filter_map(|entry| {
     let files = walkdir::WalkDir::new(path).into_iter().filter_map(|entry| {
         let entry = entry.ok()?;
         let meta = entry.metadata().ok()?;
@@ -312,8 +319,7 @@ fn read_files(path: &str) -> impl Iterator<Item = PathBuf> {
 
     files.filter(|path| {
         path.file_name()
-            .map(|name| !name.to_string_lossy().starts_with('.'))
-            .unwrap_or_default()
+            .map_or(false, |name| !name.to_string_lossy().starts_with('.'))
     })
 }
 

@@ -3,10 +3,11 @@ use std::{io, path::Path, str::FromStr};
 
 use crate::error::Error;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum Algorithm {
     Blake3,
     Md5,
+    #[default]
     Sha1,
     Sha256,
     Sha512,

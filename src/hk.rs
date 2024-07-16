@@ -6,6 +6,7 @@ use std::{
 };
 
 use owo_colors::OwoColorize;
+use regex::Regex;
 use uncased::AsUncased;
 
 use crate::{alg::Algorithm, error::Error};
@@ -21,21 +22,15 @@ impl Hashes {
         let algorithm = read_alg_from_path(path)?.parse()?;
         let text = fs::read_to_string(path)?;
         let entries = text.lines().filter(|&s| !s.starts_with('#'));
+        let parser = EntryParser::default();
 
         let mut files = Vec::new();
-
-        let hash_length = match algorithm {
-            Algorithm::Md5 => 32,
-            Algorithm::Sha256 => 64,
-            _ => return Err(Error::UnsupportedAlgorithm(algorithm)),
-        };
-
-        // FIXME: make this work with asterisks as a separator, too.
+        
+        // This should work with or without asterisks.
         // ref: https://www.howtogeek.com/67241/htg-explains-what-are-md5-sha-1-hashes-and-how-do-i-check-them/
         for entry in entries {
-            let hash = entry.get(..hash_length).ok_or(Error::HashFile)?;
-            let name = entry.get(hash_length..).ok_or(Error::HashFile)?.trim();
-
+            let (hash, name) = parser.parse(entry)?;
+            
             // We have to assume the relative path here is correct -- hence the unwrap.
             let path = path.parent().expect("path must refer to file").join(name);
             files.push(ValidateTask::new(path, name, hash));
@@ -51,6 +46,26 @@ impl Hashes {
             algorithm: self.algorithm,
             source: self.files.iter(),
         }
+    }
+}
+
+#[derive(Debug)]
+struct EntryParser {
+    rx: Regex,
+}
+
+impl EntryParser {
+    fn parse<'a>(&self, entry: &'a str) -> crate::Result<(&'a str, &'a str)> {
+        let cx = self.rx.captures(entry).ok_or(Error::HashFile)?;
+        let hash = cx.get(1).ok_or(Error::HashFile)?.as_str();
+        let name = cx.get(2).ok_or(Error::HashFile)?.as_str();
+        Ok((hash, name))
+    }
+}
+
+impl Default for EntryParser {
+    fn default() -> Self {
+        Self { rx: Regex::new(r"^(\S+)\s+\*?(.+)$").unwrap() }
     }
 }
 

@@ -1,14 +1,10 @@
 use std::{fmt::Display, io, rc::Rc};
 
-use crate::alg::Algorithm;
-
 #[derive(Copy, Clone, Debug)]
 pub enum OperationKind {
     Child,
     Dir,
     File,
-    Hash,
-    HashDir,
 }
 
 #[derive(Clone, Debug)]
@@ -18,7 +14,6 @@ pub enum Error {
     InvalidOperation(OperationKind),
     Io(Rc<io::Error>),
     UnknownAlgorithm(String),
-    UnsupportedAlgorithm(Algorithm),
     HashFile,
 }
 
@@ -29,14 +24,9 @@ impl Display for Error {
                 OperationKind::Child => f.write_str("attempt to compare dir against parent dir"),
                 OperationKind::Dir => f.write_str("cannot compare directory against non-directory"),
                 OperationKind::File => f.write_str("cannot compare file against non-file"),
-                OperationKind::Hash => f.write_str("cannot compare hash against non-file"),
-                OperationKind::HashDir => f.write_str("cannot hash (not a file)"),
             },
             Error::Io(e) => e.fmt(f),
             Error::UnknownAlgorithm(algorithm) => write!(f, "unknown algorithm: {algorithm}"),
-            Error::UnsupportedAlgorithm(algorithm) => {
-                write!(f, "hash files unsupported for {algorithm}")
-            }
             Error::HashFile => f.write_str("bad hash file format"),
         }
     }

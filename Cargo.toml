@@ -15,6 +15,7 @@ imprint = { git = "https://github.com/archer884/imprint" }
 md-5 = "0.10.6"
 owo-colors = "4.0.0"
 rayon = "1.10.0"
+regex = "1.10.5"
 sha-1 = "0.10.1"
 sha2 = "0.10.8"
 uncased = "0.9.10"
