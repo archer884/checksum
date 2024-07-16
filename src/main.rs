@@ -22,7 +22,7 @@ use imprint::Imprint;
 use iter::IsUniform;
 use owo_colors::OwoColorize;
 use rayon::prelude::*;
-use uncased::AsUncased;
+use uncased::{AsUncased, UncasedStr};
 
 use crate::error::Error;
 
@@ -48,11 +48,11 @@ fn run(args: &Args) -> Result<()> {
 
     if let Some(command) = &args.command {
         return match command {
-            Command::Blake3(mode) => execute_command(&args.left, mode),
-            Command::Md5(mode) => execute_command(&args.left, mode),
-            Command::Sha1(mode) => execute_command(&args.left, mode),
-            Command::Sha256(mode) => execute_command(&args.left, mode),
-            Command::Sha512(mode) => execute_command(&args.left, mode),
+            Command::Blake3(mode) => execute_command(args, mode),
+            Command::Md5(mode) => execute_command(args, mode),
+            Command::Sha1(mode) => execute_command(args, mode),
+            Command::Sha256(mode) => execute_command(args, mode),
+            Command::Sha512(mode) => execute_command(args, mode),
         };
     }
 
@@ -120,24 +120,40 @@ fn apply_checksums(path: &str) -> Result<()> {
     Ok(())
 }
 
-fn execute_command(path: impl AsRef<Path>, mode: &impl Mode) -> Result<()> {
-    let path = path.as_ref();
-    let left = hash::hash_to_string(path, mode.digest())?;
+// FIXME: I want to adjust this so that it'll work with a directory or a list of files, but...
+// I'm not real clear how I'm gonna make that happen.
+//
+// Hell, so far I'm not even writing a hash file.
+fn execute_command(args: &Args, mode: &impl Mode) -> Result<()> {
+    let left = hash::hash_to_string(&args.left, mode.digest())?;
 
     if let Some(right) = mode.get_hash() {
-        if left.as_uncased() == right {
-            let result = "True".green();
-            println!("{result}");
-        } else {
-            let result = "False".red();
-            println!("{result}");
-            process::exit(1);
-        }
-    } else {
-        println!("{left}");
+        return compare_hash_str(&left, right);
     }
 
+    let (should_write, output) = mode.file_options();
+    if should_write {
+        // write hash file somehow...
+        // I mean, the CLI works perfectly, but fuck me if my brain is interested in trying to
+        // write this fuckin' file right now.
+        dbg!(output);
+    }
+
+    println!("{left}");
+
     Ok(())
+}
+
+fn compare_hash_str(left: &str, right: &UncasedStr) -> Result<()> {
+    if left.as_uncased() == right {
+        let result = "True".green();
+        println!("{result}");
+        Ok(())
+    } else {
+        let result = "False".red();
+        println!("{result}");
+        process::exit(1);
+    }
 }
 
 fn compare_files(left: &str, right: &str) -> Result<()> {

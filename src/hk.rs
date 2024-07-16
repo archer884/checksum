@@ -30,12 +30,14 @@ impl Hashes {
             _ => return Err(Error::UnsupportedAlgorithm(algorithm)),
         };
 
+        // FIXME: make this work with asterisks as a separator, too.
+        // ref: https://www.howtogeek.com/67241/htg-explains-what-are-md5-sha-1-hashes-and-how-do-i-check-them/
         for entry in entries {
             let hash = entry.get(..hash_length).ok_or(Error::HashFile)?;
             let name = entry.get(hash_length..).ok_or(Error::HashFile)?.trim();
 
             // We have to assume the relative path here is correct -- hence the unwrap.
-            let path = path.parent().unwrap().join(name);
+            let path = path.parent().expect("path must refer to file").join(name);
             files.push(ValidateTask::new(path, name, hash));
         }
 

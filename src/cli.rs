@@ -94,6 +94,7 @@ pub trait Mode {
     type Digest: Digest + Write;
     fn digest(&self) -> Self::Digest;
     fn get_hash(&self) -> Option<&UncasedStr>;
+    fn file_options(&self) -> (bool, Option<&str>);
 }
 
 macro_rules! impl_mode {
@@ -108,6 +109,14 @@ macro_rules! impl_mode {
             fn get_hash(&self) -> Option<&UncasedStr> {
                 self.hash.as_ref().map(|hash| hash.as_uncased())
             }
+
+            fn file_options(&self) -> (bool, Option<&str>) {
+                match self.output.as_ref() {
+                    Some(None) => (true, None),
+                    Some(Some(path)) => (true, Some(path)),
+                    None => (false, None),
+                }
+            }
         }
     };
 }
@@ -119,6 +128,10 @@ pub struct Blake3Command {
     ///
     /// Optional. If provided, checksum will assert that this hash matches the given file.
     hash: Option<String>,
+
+    // I know this looks dumb as fuck, but... Stick with me for a sec.
+    #[arg(short, long)]
+    output: Option<Option<String>>,
 }
 
 impl_mode!(Blake3Command, blake3::Hasher);
@@ -130,6 +143,10 @@ pub struct Md5Command {
     ///
     /// Optional. If provided, checksum will assert that this hash matches the given file.
     hash: Option<String>,
+
+    // I know this looks dumb as fuck, but... Stick with me for a sec.
+    #[arg(short, long)]
+    output: Option<Option<String>>,
 }
 
 impl_mode!(Md5Command, md5::Md5);
@@ -141,6 +158,10 @@ pub struct Sha1Command {
     ///
     /// Optional. If provided, checksum will assert that this hash matches the given file.
     hash: Option<String>,
+
+    // I know this looks dumb as fuck, but... Stick with me for a sec.
+    #[arg(short, long)]
+    output: Option<Option<String>>,
 }
 
 impl_mode!(Sha1Command, sha1::Sha1);
@@ -152,6 +173,10 @@ pub struct Sha256Command {
     ///
     /// Optional. If provided, checksum will assert that this hash matches the given file.
     hash: Option<String>,
+
+    // I know this looks dumb as fuck, but... Stick with me for a sec.
+    #[arg(short, long)]
+    output: Option<Option<String>>,
 }
 
 impl_mode!(Sha256Command, sha2::Sha256);
@@ -163,6 +188,10 @@ pub struct Sha512Command {
     ///
     /// Optional. If provided, checksum will assert that this hash matches the given file.
     hash: Option<String>,
+
+    // I know this looks dumb as fuck, but... Stick with me for a sec.
+    #[arg(short, long)]
+    output: Option<Option<String>>,
 }
 
 impl_mode!(Sha512Command, sha2::Sha512);
