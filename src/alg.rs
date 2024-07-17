@@ -40,7 +40,7 @@ impl FromStr for Algorithm {
     type Err = UnknownAlgorithmError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_uppercase().as_ref() {
+        match s.to_ascii_uppercase().trim_end_matches("SUM").as_ref() {
             "BLAKE3" => Ok(Algorithm::Blake3),
             "MD5" => Ok(Algorithm::Md5),
             "SHA1" => Ok(Algorithm::Sha1),

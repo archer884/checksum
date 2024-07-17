@@ -124,6 +124,7 @@ impl<'a> Iterator for Validator<'a> {
     type Item = io::Result<Validation<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // FIXME: file path should be based on path of sum file
         let file = self.source.next()?;
         let result = match file.validate(self.algorithm) {
             Ok(result) => result,
