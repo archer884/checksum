@@ -2,107 +2,79 @@
 
 ```shell
 $ checksum --help
-check file hashes
+a checksum command
 
-Basic operation prints a file hash for a file. Alternatively, if the file path provided refers to a hash file (e.g. "foo.md5"), the program will attempt to validate all files listed in the has file. If two paths are given (both files or both directories), the two will be compared. A comparison between directories makes use of the Imprint type for greater efficiency.
-
-If only a left-hand operand is provided, checksum will print the hash of the operand (assuing said operand is a file; it is an error to provide only a directory). The algorithm used for this purpose may be set as an environment variable called CHECKSUM_DEF_ALG. Allowable names include: blake3, md5, sha1, sha256, sha512. These are not case sensitive. This variable may be set at compile time.
-
-A further note on directory comparisons: directory comparisons are asymmetrical. Checksum will ensure that all files from the left hand directory exist in the right hand directory but not vice versa. This is for the common use case that files from the left have been copied to some archive location on the right.
-
-Usage: checksum [OPTIONS] <LEFT> [RIGHT] [COMMAND]
+Usage: checksum [OPTIONS] <TARGET>
+       checksum [OPTIONS] [TARGET] <COMMAND>
 
 Commands:
-  blake3  blake3 mode
-  md5     md5 mode
-  sha1    sha1 mode
-  sha256  sha256 mode
-  sha512  sha512 mode
-  help    Print this message or the help of the given subcommand(s)
+  file
+  help  Print this message or the help of the given subcommand(s)
 
 Arguments:
-  <LEFT>
-          left hand resource
-
-  [RIGHT]
-          right hand resource
-          
-          This resource, whether file or directory, is compared against the left. Both resources must be of matching type: e.g., if the left hand resource is a file, this must also be a file; if the left hand resource is a directory, this must also be a directory. This
-          argument is ignored by all subcommands.
+  <TARGET>
+          a file or directory
 
 Options:
-  -f, --full-comparison
+  -c, --compare <COMPARE>
+          a file or directory
+
+          Provide this argument to assert that the target and comparison
+          targets are equal. Non-equal files will be printed to the screen. Any
+          non-equal files will cause the command to return an error code to the
+          shell.
+
+  -a, --assert <ASSERT>
+          a hash value
+
+          Provide this argument to assert that the target and hash are equal.
+
+  -m, --mode <MODE>
+          the hashing algorithm to be used
+
+          For output, the default is sha256, but the default algorithm may be
+          overridden by setting an environment variable called
+          CHECKSUM_DEFAULT_ALG.
+
+          For internal comparisons, checksum uses Blake3.
+
+          [env: CHECKSUM_DEFAULT_ALG=]
+
+  -f, --force-full-compare
           force full comparison
-          
-          Forces a full comparison between directories. This has no effect except when comparing directories. Warning: this is MUCH slower.
+
+          Comparisons between directory trees are partial comparisons by
+          default. Pass this flag to trigger a full comparison. A full
+          comparison is MUCH SLOWER.
 
   -v, --verbose
-          verbose
-          
-          Print names of matching files
+          print names of matching files during directory comparisons
 
   -h, --help
           Print help (see a summary with '-h')
 
   -V, --version
           Print version
-
-
-USAGE:
-    checksum <LEFT> [RIGHT] [SUBCOMMAND]
-
-ARGS:
-    <LEFT>
-            left hand resource
-
-    <RIGHT>
-            right hand resource
-            
-            This resource, whether file or directory, is compared against the left. Both resources
-            must be of matching type: e.g., if the left hand resource is a file, this must also be a
-            file; if the left hand resource is a directory, this must also be a directory. This
-            argument is ignored by all subcommands.
-
-OPTIONS:
-    -h, --help
-            Print help information
-
-    -V, --version
-            Print version information
-
-SUBCOMMANDS:
-    blake3
-            blake3 mode
-    help
-            Print this message or the help of the given subcommand(s)
-    md5
-            md5 mode
-    sha1
-            sha1 mode
-    sha256
-            sha256 mode
-    sha512
-            sha512 mode
 ```
 
 ## Operation
 
-`checksum` can print a checksum, assert a checksum, compare files, or compare trees. As of version 0.7.0, checksum can also validate a checksum file.
+`checksum` can print a checksum, assert a checksum, compare files, or compare directory trees. As of version 0.8.1, checksum can also create and validate sum files.
 
 ### Print
 
-If provided with just a file path, checksum will print a checksum. The default algorithm is md5, but this can be changed with an environment variable.
+If provided with just a file path, checksum will print a checksum. The default algorithm is sha256, but this can be changed with an environment variable. See below.
 
 ```shell
-❯ checksum .\src\main.rs
-0d78c34c81b2fd2c2fe0b0a8c0f74f77
+❯ checksum ./src/main.rs
+53f44dc9cba08ef467d1d2d26a27260b266e37350beac6c1efc6bd6ebe437516
 ```
 
 To use a different algorithm pass its flag after the file path.
 
 ```shell
-❯ checksum .\src\main.rs blake3
-32f2d7f42f517924e1fb609ea5107ac8ec42d02408a77c0a69294747c5ef8921
+❯ checksum ./src/main.rs -m blake3
+24f7dc5700cabbed6e1c91436e95081a791338f0798eb58594d23aabd91ec926
 ```
 
 ### Assert
@@ -110,8 +82,9 @@ To use a different algorithm pass its flag after the file path.
 To assert that a file should have a given checksum, pass the file path along with the algorithm and checksum.
 
 ```shell
-❯ checksum .\src\main.rs `
-    blake3 32f2d7f42f517924e1fb609ea5107ac8ec42d02408a77c0a69294747c5ef8921
+❯ checksum ./src/main.rs \
+    -m blake3 \
+    -a 24f7dc5700cabbed6e1c91436e95081a791338f0798eb58594d23aabd91ec926
 True
 ```
 ### Compare
@@ -119,7 +92,7 @@ True
 To compare a file against another file, pass in both filenames. As you can see, checksum is a little careless about making sure they're not just the same file.
 
 ```shell
-❯ checksum .\src\main.rs .\src\main.rs
+❯ checksum ./src/main.rs -c ./src/main.rs
 True
 ```
 
@@ -128,10 +101,16 @@ True
 To compare one directory tree against another, pass in both directory paths. (Comparing a directory against a file or vice versa is impossible.) Checksum does *not* perform a full comparison of each file in this case. Instead, only the start and end of each file is compared, along with the length of each file.
 
 ```shell
-❯ checksum .\src\ .\target\ --force
-Missing: .\src\cli.rs
-Missing: .\src\error.rs
-Missing: .\src\fmt.rs
-Missing: .\src\iter.rs
-Missing: .\src\main.rs
+❯ checksum ./src/ ./target/
+Missing: ./src/cli.rs
+Missing: ./src/error.rs
+Missing: ./src/fmt.rs
+Missing: ./src/iter.rs
+Missing: ./src/main.rs
 ```
+
+It is possible to force a full comparison of files in two directories by passing the `--force` flag. This is, of course, a whale of a lot slower.
+
+## Default algorithm
+
+The default algorithm has changed as of version 0.8. By default, sha256 sums are printed when checksum is asked to print a checksum. This default can be overridden by setting an environment variable called `CHECKSUM_DEFAULT_ALG`. The value of this variable may be any of checksum's normal algorithms.

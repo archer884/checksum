@@ -38,7 +38,8 @@ pub struct Args {
     /// the hashing algorithm to be used
     ///
     /// For output, the default is sha256, but the default algorithm may be overridden
-    /// by setting an environment variable called CHECKSUM_DEFAULT_ALG.
+    /// by setting an environment variable called CHECKSUM_DEFAULT_ALG. Must be one of
+    /// blake3, md5, sha1, sha256, sha512.
     ///
     /// For internal comparisons, checksum uses Blake3.
     #[arg(short, long, env(CHECKSUM_DEFAULT_ALG))]
