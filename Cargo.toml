@@ -7,15 +7,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-blake3 = { version = "1.5.3", features = ["traits-preview"] }
-clap = { version = "4.5.9", features = ["color", "derive", "env", "wrap_help"] }
+blake3 = { version = "1.8.1", features = ["traits-preview"] }
+clap = { version = "4.5.36", features = ["color", "derive", "env", "wrap_help"] }
 digest = "0.10.7"
-hashbrown = "0.14.5"
+hashbrown = "0.15.2"
 imprint = { git = "https://github.com/archer884/imprint" }
 md-5 = "0.10.6"
-owo-colors = "4.0.0"
+owo-colors = "4.2.0"
 rayon = "1.10.0"
-regex = "1.10.5"
+regex = "1.11.1"
 sha-1 = "0.10.1"
 sha2 = "0.10.8"
 uncased = "0.9.10"
