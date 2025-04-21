@@ -1,5 +1,5 @@
 use std::{
-    io,
+    io::{self, IsTerminal},
     path::{Path, PathBuf},
 };
 
@@ -48,27 +48,40 @@ pub fn compare_contents<C>(
 where
     C: Comparer<Output: Send> + Copy,
 {
+    let colorize = io::stdout().is_terminal();
+    
     let message = "match".green();
     let mut has_failure = false;
+
     for (relative, absolute) in left {
         if let Some(right_hand_absolute_path) = right.get(&relative) {
-            if !compare_with::<C>(&absolute, right_hand_absolute_path)? {
+            if !compare_with::<C>(&absolute, right_hand_absolute_path, colorize)? {
                 has_failure = true;
             } else if verbose {
                 let path = relative.display();
                 println!("{message} {path}");
             }
         } else {
-            let missing = "missing".yellow();
-            let relative = relative.display();
-            println!("{missing} {relative}");
+            print_missing(relative, colorize);
             has_failure = true;
         }
     }
+    
     Ok(has_failure)
 }
 
-pub fn compare_with<T>(left: &Path, right: &Path) -> crate::Result<bool>
+fn print_missing(relative: PathBuf, colorize: bool) {
+    if colorize {
+        let missing = "missing".yellow();
+        let relative = relative.display();
+        println!("{missing} {relative}");
+    } else {
+        let relative = relative.display();
+        println!("missing {relative}");
+    }
+}
+
+pub fn compare_with<T>(left: &Path, right: &Path, colorize: bool) -> crate::Result<bool>
 where
     T: Comparer<Output: Send> + Copy,
 {
@@ -80,9 +93,13 @@ where
 
     let uniform = tasks?.uniform();
     if !uniform {
-        let mismatch = "MISMATCH".red();
-        let path = left.display();
-        println!("{mismatch} {path}");
+        if colorize {
+            let mismatch = "MISMATCH".red();
+            let path = left.display();
+            println!("{mismatch} {path}");
+        } else {
+            println!("MISMATCH {}", left.display());
+        }
     }
 
     Ok(uniform)

@@ -8,7 +8,7 @@ mod hk;
 mod iter;
 
 use std::{
-    io,
+    io::{self, IsTerminal},
     path::{Path, PathBuf},
     process,
 };
@@ -110,15 +110,27 @@ fn apply_checksums(path: &str) -> Result<()> {
 }
 
 fn compare_hash_str(left: &str, right: &str) -> Result<()> {
+    let colorize = io::stdout().is_terminal();
     let right = right.as_uncased();
-    if left.as_uncased() == right {
-        let result = "True".green();
-        println!("{result}");
-        Ok(())
+
+    if colorize {
+        if left.as_uncased() == right {
+            let result = "True".green();
+            println!("{result}");
+            Ok(())
+        } else {
+            let result = "False".red();
+            println!("{result}");
+            process::exit(1);
+        }
     } else {
-        let result = "False".red();
-        println!("{result}");
-        process::exit(1);
+        if left.as_uncased() == right {
+            println!("True");
+            Ok(())
+        } else {
+            println!("False");
+            process::exit(1);
+        }
     }
 }
 
